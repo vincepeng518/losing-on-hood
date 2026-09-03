@@ -499,11 +499,11 @@ def tick():
             if addr in s["positions"] or s["seen"].get(addr): continue
             # 30 分內審過的 approve 幣不重複記錄（防洗版）；seen 不記（節流解除後要能真開倉）
             _at = s.setdefault("_audit_ts", {})
-            if _at.get(addr, 0) > time.time() - 1800:
-                continue  # 30 分內已審過且未開倉 → 安靜跳過
+            if _at.get(addr, 0) > time.time() - 900:
+                continue  # 15 分內已審過且未開倉 → 安靜跳過
             score, rej, snap = entry_score(t, token_info(addr), toks)
             if not rej and score >= 6:
-                _at[addr] = time.time()  # approve: 30 分內不重複記 log
+                _at[addr] = time.time()  # approve: 15 分內不重複記 log
             # agent_log: 每個掃過的幣都留一條評估紀錄（供審計頁顯示, schema 同 paper）
             sym0 = t.get("symbol", "?")
             s.setdefault("agent_log", []).append({
@@ -516,7 +516,7 @@ def tick():
             if rej or score < 6:  # 多討論少開倉: 門檻 5→6 (用戶指示, 樣本累積中)
                 s["seen"][addr] = time.time()  # veto/低分: 審過即記 seen, 48h 冷卻
                 continue
-            if last_buy_ts > time.time() - 1800: break  # gas 節流: approve 幣不記 seen, 節流解除後再審真開倉
+            if last_buy_ts > time.time() - 900: break  # gas 節流 30→15 分 (用戶指示放寬): approve 幣不記 seen
             alloc_usd = min(PER_TRADE, s["equity_usd"] * 0.5, available * ep * 0.90)  # score 加碼移除: 未驗證, 50筆後再評
             if alloc_usd < 2.5: break
             alloc_eth = alloc_usd / ep
