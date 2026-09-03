@@ -1,0 +1,8 @@
+{
+  "name": "Losing on Hood",
+  "description": "Robinhood Chain Meme 交易機器人與五代理決策流水線儀表板",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
