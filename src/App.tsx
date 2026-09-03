@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { TradingMode, AccountState, DangerToast, AgentWeightsConfig } from './types';
 import { initialPaperState, initialLiveState } from './data/mockData';
 import { normalizeAccountState } from './data/stateNormalizer';
@@ -9,6 +9,7 @@ import { WallOfShame } from './components/WallOfShame';
 import { AgentCouncil } from './components/AgentCouncil';
 import { StrategyDoctor } from './components/StrategyDoctor';
 import { FooterTicker } from './components/FooterTicker';
+import { Check, BellRing } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [mode, setMode] = useState<TradingMode>('paper');
@@ -57,6 +58,10 @@ export const App: React.FC = () => {
       danger_type: 'whale_concentration',
     },
   ]);
+
+  // Success tip state when user triggers a test alert
+  const [alertSuccessTip, setAlertSuccessTip] = useState<{ token: string; title: string; ts: number } | null>(null);
+  const alertSuccessTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Requirement 1: Poll /api/state and /api/live every 5 seconds
   useEffect(() => {
@@ -213,6 +218,19 @@ export const App: React.FC = () => {
     };
 
     setToasts((prev) => [newToast, ...(prev || []).slice(0, 15)]);
+
+    // Trigger success tip beside the button
+    setAlertSuccessTip({
+      token: newToast.token,
+      title: newToast.title,
+      ts: Date.now(),
+    });
+    if (alertSuccessTimer.current) {
+      clearTimeout(alertSuccessTimer.current);
+    }
+    alertSuccessTimer.current = setTimeout(() => {
+      setAlertSuccessTip(null);
+    }, 6000);
   };
 
   return (
@@ -243,16 +261,46 @@ export const App: React.FC = () => {
             <span className="text-neutral-200 text-[11px] sm:text-xs">5-Agent 交易室威脅防護網：即時監聽惡意蜜罐合約與鯨魚異動</span>
           </div>
           <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2">
+            {/* 測試警報成功提示 */}
+            {alertSuccessTip && (
+              <div 
+                id="test-alert-success-tip"
+                className="flex items-center gap-1.5 rounded-none border border-emerald-500/40 bg-emerald-950/70 px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs text-emerald-300 font-mono shadow-sm transition-all animate-pulse"
+              >
+                <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                <span>測試警報已送出！「${alertSuccessTip.token}」已存入右上角鈴鐺</span>
+                <span className="ml-1 rounded-none bg-emerald-500/20 px-1 py-0.2 text-[10px] text-emerald-200 font-bold border border-emerald-500/30">
+                  鈴鐺 +1
+                </span>
+              </div>
+            )}
+
             {isFallbackMode && (
               <span className="text-amber-400 text-[10px] sm:text-[11px]">
                 ⚠️ API 離線中，使用視覺 Fallback
               </span>
             )}
             <button
+              id="test-danger-alert-btn"
               onClick={handleSimulateDangerAlert}
-              className="rounded-none border border-rose-500/40 bg-rose-950/40 px-2.5 sm:px-3 py-1 text-[11px] sm:text-xs text-rose-300 hover:bg-rose-900/60 hover:text-white transition-colors"
+              title="點擊模擬偵測到蜜罐或惡意合約，觸發 5-Agent 一票否決並推播至右上角通知鈴鐺"
+              className={`flex items-center gap-1.5 rounded-none border px-2.5 sm:px-3 py-1 text-[11px] sm:text-xs font-mono transition-all ${
+                alertSuccessTip
+                  ? 'border-emerald-500/40 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/50'
+                  : 'border-rose-500/40 bg-rose-950/40 text-rose-300 hover:bg-rose-900/60 hover:text-white'
+              }`}
             >
-              + 測試警報通知
+              {alertSuccessTip ? (
+                <>
+                  <Check className="h-3 w-3 text-emerald-400 shrink-0" />
+                  <span>警報已送出 (再點測試)</span>
+                </>
+              ) : (
+                <>
+                  <BellRing className="h-3 w-3 shrink-0" />
+                  <span>+ 測試警報通知</span>
+                </>
+              )}
             </button>
           </div>
         </div>

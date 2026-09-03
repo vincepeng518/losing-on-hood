@@ -17,6 +17,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
   onSimulateDangerAlert,
 }) => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
+  const [simulatedSuccess, setSimulatedSuccess] = useState<boolean>(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close when clicking outside
@@ -110,15 +111,25 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
           {/* Quick Simulation Trigger inside dropdown */}
           <div className="flex items-center justify-between border-b border-white/5 bg-black/40 px-3.5 py-1.5 text-[11px] font-mono text-neutral-400">
             <span className="text-neutral-500">測試 5-Agent 攔截管線:</span>
-            <button
-              onClick={() => {
-                onSimulateDangerAlert();
-              }}
-              className="flex items-center gap-1 text-rose-400 hover:text-rose-300 font-bold transition-colors"
-            >
-              <PlusCircle className="h-3 w-3" />
-              <span>觸發模擬警報</span>
-            </button>
+            <div className="flex items-center gap-2">
+              {simulatedSuccess && (
+                <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold animate-pulse">
+                  <CheckCheck className="h-3 w-3 text-emerald-400" />
+                  已新增至下方
+                </span>
+              )}
+              <button
+                onClick={() => {
+                  onSimulateDangerAlert();
+                  setSimulatedSuccess(true);
+                  setTimeout(() => setSimulatedSuccess(false), 3500);
+                }}
+                className="flex items-center gap-1 text-rose-400 hover:text-rose-300 font-bold transition-colors"
+              >
+                <PlusCircle className="h-3 w-3" />
+                <span>觸發模擬警報</span>
+              </button>
+            </div>
           </div>
 
           {/* Notification Items List */}

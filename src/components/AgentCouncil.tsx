@@ -19,7 +19,9 @@ import {
   RotateCcw,
   Sparkles,
   Zap,
-  Target
+  Target,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 interface AgentCouncilProps {
@@ -47,6 +49,7 @@ export const AgentCouncil: React.FC<AgentCouncilProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [showWeightModal, setShowWeightModal] = useState<boolean>(false);
   const [localWeights, setLocalWeights] = useState<AgentWeightsConfig>(weights);
+  const [isStatsOpen, setIsStatsOpen] = useState<boolean>(true); // 預設開啟 5-Agent 戰績指標卡片
 
   const agentIcons: Record<AgentName, React.ReactNode> = {
     scanner: <Radar className="h-4 w-4" />,
@@ -184,30 +187,86 @@ export const AgentCouncil: React.FC<AgentCouncilProps> = ({
       </div>
 
       {/* 5-Agent Historical Win Rate & Veto Rate Performance Cards */}
-      <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-md shadow-2xl">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
-          <div>
+      <div className={`rounded-3xl border border-white/10 bg-white/[0.03] ${isStatsOpen ? 'p-5 sm:p-6' : 'p-4 sm:p-5'} backdrop-blur-md shadow-2xl transition-all duration-200`}>
+        <div className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${isStatsOpen ? 'border-b border-white/10 pb-4' : 'pb-0'}`}>
+          <div 
+            onClick={() => setIsStatsOpen(!isStatsOpen)}
+            className="cursor-pointer group select-none flex-1"
+          >
             <div className="flex items-center gap-2">
-              <Target className="h-4 w-4 text-indigo-400" />
-              <h3 className="text-base font-bold text-white">
-                5-Agent 歷史勝率、攔截率與專屬戰績指標
+              <Target className="h-4 w-4 text-indigo-400 group-hover:scale-110 transition-transform" />
+              <h3 className="text-base font-bold text-white group-hover:text-indigo-200 transition-colors flex items-center gap-2 flex-wrap">
+                <span>5-Agent 歷史勝率、攔截率與專屬戰績指標</span>
+                {!isStatsOpen && (
+                  <span className="rounded-md border border-indigo-500/30 bg-indigo-950/40 px-2 py-0.5 font-mono text-[10px] text-indigo-300 font-normal">
+                    已收折 (點擊展開)
+                  </span>
+                )}
               </h3>
             </div>
-            <p className="text-xs text-neutral-400 mt-0.5">
+            <p className="text-xs text-neutral-400 mt-0.5 group-hover:text-neutral-300 transition-colors">
               量化統計各代理獨立審查放行後的持倉勝率、風控攔截率，以及關鍵惡意合約阻止次數
             </p>
+
+            {/* Quick glance mini indicators when collapsed */}
+            {!isStatsOpen && (
+              <div className="mt-3 flex flex-wrap items-center gap-2 font-mono text-[11px]">
+                {agentStatsList.map((st) => {
+                  const style = getAgentColor(st.agent);
+                  return (
+                    <span 
+                      key={st.agent}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-black/40 px-2 py-0.5 text-neutral-300"
+                    >
+                      <span className={style.text}>{agentIcons[st.agent]}</span>
+                      <span className="uppercase text-[10px] font-bold">{st.agent}</span>
+                      <span className={`font-bold ${st.win_rate >= 50 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {st.win_rate}%
+                      </span>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
-          <button
-            onClick={() => setShowWeightModal(!showWeightModal)}
-            className="flex items-center gap-1.5 rounded-2xl border border-indigo-500/40 bg-indigo-950/40 px-3.5 py-1.5 font-mono text-xs text-indigo-300 transition-all hover:bg-indigo-900/50 hover:text-white"
-          >
-            <Sliders className="h-3.5 w-3.5" />
-            <span>{showWeightModal ? '收起權重配置面板' : '調用 Agent 投票權重與耐受度'}</span>
-          </button>
+          <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end shrink-0">
+            <button
+              onClick={() => {
+                if (!isStatsOpen) setIsStatsOpen(true);
+                setShowWeightModal(!showWeightModal);
+              }}
+              className="flex items-center gap-1.5 rounded-2xl border border-indigo-500/40 bg-indigo-950/40 px-3.5 py-1.5 font-mono text-xs text-indigo-300 transition-all hover:bg-indigo-900/50 hover:text-white"
+            >
+              <Sliders className="h-3.5 w-3.5" />
+              <span>{showWeightModal && isStatsOpen ? '收起權重配置面板' : '調用 Agent 投票權重與耐受度'}</span>
+            </button>
+
+            <button
+              id="toggle-agent-stats-btn"
+              onClick={() => setIsStatsOpen(!isStatsOpen)}
+              className="flex items-center gap-1.5 rounded-2xl border border-white/10 bg-white/5 px-3 py-1.5 font-mono text-xs text-neutral-300 transition-all hover:bg-white/10 hover:text-white"
+              title={isStatsOpen ? '收折 5-Agent 戰績指標' : '展開 5-Agent 戰績指標'}
+            >
+              {isStatsOpen ? (
+                <>
+                  <ChevronUp className="h-3.5 w-3.5 text-neutral-400" />
+                  <span>收折</span>
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="h-3.5 w-3.5 text-neutral-400" />
+                  <span>展開</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
-        {/* 5 Agent Cards Grid */}
+        {/* Collapsible Content */}
+        {isStatsOpen && (
+          <div className="animate-fadeIn">
+            {/* 5 Agent Cards Grid */}
         <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
           {agentStatsList.map((st) => {
             const style = getAgentColor(st.agent);
@@ -269,8 +328,8 @@ export const AgentCouncil: React.FC<AgentCouncilProps> = ({
           })}
         </div>
 
-        {/* Interactive Weights & Tolerance Tuning Drawer/Panel */}
-        {showWeightModal && (
+            {/* Interactive Weights & Tolerance Tuning Drawer/Panel */}
+            {showWeightModal && (
           <div className="mt-6 rounded-2xl border border-indigo-500/30 bg-indigo-950/20 p-5 backdrop-blur-xl animate-fadeIn">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
               <div className="flex items-center gap-2">
@@ -402,6 +461,8 @@ export const AgentCouncil: React.FC<AgentCouncilProps> = ({
                 </span>
               </div>
             </div>
+          </div>
+        )}
           </div>
         )}
       </div>
