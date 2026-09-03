@@ -116,7 +116,7 @@ export const AgentCouncil: React.FC<AgentCouncilProps> = ({
         (item.reason || '').toLowerCase().includes(q) ||
         (item.agent || '').toLowerCase().includes(q)
       );
-    });
+    }).sort((a, b) => (b.ts || 0) - (a.ts || 0)); // 由新到舊
   }, [logs, selectedAgent, selectedVerdict, searchTerm]);
 
   // Overall counts
