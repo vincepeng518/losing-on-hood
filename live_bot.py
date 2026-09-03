@@ -173,6 +173,12 @@ def settle(s, addr, p, sell_act, why, method, native_eth_out=None):
     else:
         exit_usd = float(sell_act.get("buy_cost_usd") or sell_act.get("cost_usd") or 0)
     gas = float(sell_act.get("gas_usd") or 0) + (p.get("gas_usd") or 0)
+    # 單價（USD/幣）: 金額 ÷ 幣數量；買入量 p.token_amount 為 raw（含 decimals）
+    dec = 10 ** int(p.get("token_decimals", 18) or 18)
+    bought_h = float(p.get("token_amount") or 0) / dec if p.get("token_amount") else 0
+    sold_h = float(sell_act.get("token_amount") or 0)  # activity 為人類可讀
+    entry_price = entry_usd / bought_h if bought_h else None
+    exit_price = exit_usd / sold_h if sold_h else None
     pnl_usd = exit_usd - entry_usd - gas
     pnl_pct = pnl_usd / entry_usd * 100 if entry_usd else 0
     s["equity_usd"] += exit_usd - float(sell_act.get("gas_usd") or 0)  # gas 是現金流, equity 要扣
@@ -182,6 +188,7 @@ def settle(s, addr, p, sell_act, why, method, native_eth_out=None):
         "pnl_pct": round(pnl_pct, 1), "reason": why,
         "pnl_usd": round(pnl_usd, 2), "exit_usd": round(exit_usd, 2), "gas_usd": round(gas, 2),
         "alloc_usd": round(entry_usd, 2), "entry_usd": round(entry_usd, 2),
+        "entry_price": round(entry_price, 12) if entry_price else None, "exit_price": round(exit_price, 12) if exit_price else None,
         "method": method, "tx_in": p.get("tx_in", ""), "tx_out": tx[:26],
         "_buy_ts": p.get("opened_ts"),
         "score": p.get("score"), "snap": p.get("snap"),
@@ -489,10 +496,19 @@ def tick():
             addr = t["address"]
             if addr in s["positions"] or s["seen"].get(addr): continue
             score, rej, snap = entry_score(t, token_info(addr), toks)
+            # agent_log: 每個掃過的幣都留一條評估紀錄（供審計頁顯示, schema 同 paper）
+            sym0 = t.get("symbol", "?")
+            s.setdefault("agent_log", []).append({
+                "token": sym0, "ts": time.time(),
+                "agent": "SCANNER",
+                "verdict": "veto" if rej else ("approve" if score >= 5 else "hold"),
+                "score": score,
+                "reason": rej or f"score={score} liq={int((t.get('liquidity') or 0)/1000)}k mc={int((t.get('market_cap') or 0)/1000)}k holders={t.get('holder_count') or 0}"})
+            if len(s["agent_log"]) > 400: s["agent_log"] = s["agent_log"][-400:]  # 防爆檔
             if rej or score < 5:  # gas 佔總虧損78%, 減頻率=直接止血 (19筆gas 18.48u)
                 if rej: s["seen"][addr] = time.time()  # 被閘門擋的也記，48h 內不重查
                 continue
-            alloc_usd = min(PER_TRADE + (2.0 if score >= 6 else (-1.0 if score < 5 else 0)), s["equity_usd"] * 0.5, available * ep * 0.90)
+            alloc_usd = min(PER_TRADE, s["equity_usd"] * 0.5, available * ep * 0.90)  # score 加碼移除: 未驗證, 50筆後再評
             if alloc_usd < 2.5: break
             alloc_eth = alloc_usd / ep
             # 條件單只掛 SL 保命（賣出所得經 GMGN 託管會卡 quote 幣, 實測 PARKER/QC）
@@ -601,6 +617,7 @@ def reduce_position(s, addr, p, sells):
     p_part["alloc_usd"] = p["alloc_usd"] * ratio
     p_part["gas_usd"] = (p.get("gas_usd") or 0) * ratio
     p_part["entry_quote_qty"] = (p.get("entry_quote_qty") or 0) * ratio  # 半倉對應半份 quote
+    p_part["token_amount"] = int(orig * ratio)  # 半倉對應半份幣量（settle 算單價用）
     settle(s, addr, p_part, a, "TP partial fill", "cond")
     # 縮剩餘倉
     p["alloc_usd"] = round(p["alloc_usd"] * (1 - ratio), 4)
