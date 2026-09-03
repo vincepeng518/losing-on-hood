@@ -1,0 +1,9 @@
+# .gitignore
+*.db
+*.log
+*.bak*
+state.json
+paper_state.json
+trades.csv
+*.png
+__pycache__/
