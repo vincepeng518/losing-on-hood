@@ -98,8 +98,8 @@ export function normalizeAccountState(
           symbol: String(c.symbol || 'UNKNOWN'),
           time: String(c.time || new Date().toISOString()),
           alloc_usd,
-          entry_price: Number(c.entry_price) || Number(c.entry_usd) || 0,
-          exit_price: Number(c.exit_price) || Number(c.exit_usd) || 0,
+          entry_price: Number(c.entry_price) || 0,   // 真單價 USD/幣（後端 settle 計算）；舊紀錄無此欄→0
+          exit_price: Number(c.exit_price) || 0,
           pnl_usd,
           pnl_pct: Number(c.pnl_pct) || 0,
           peak,

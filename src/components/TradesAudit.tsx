@@ -261,13 +261,13 @@ export const TradesAudit: React.FC<TradesAuditProps> = ({ trades, initialFilter 
                           </span>
                         </div>
                         <div className="rounded-xl bg-white/[0.03] p-2.5 border border-white/5">
-                          <span className="text-neutral-500 block text-[10px]">進場價格 (USD / ETH)</span>
-                          <span className="font-semibold text-white">{formatPrice(t.entry_price)}</span>
+                          <span className="text-neutral-500 block text-[10px]">進場價格 (USD / 投入 ETH)</span>
+                          <span className="font-semibold text-white">{t.entry_price ? formatPrice(t.entry_price) : '—'}</span>
                           <span className="text-neutral-400 block text-[10px]">{formatEth(t.entry_eth)}</span>
                         </div>
                         <div className="rounded-xl bg-white/[0.03] p-2.5 border border-white/5">
-                          <span className="text-neutral-500 block text-[10px]">出場價格 (USD / ETH)</span>
-                          <span className="font-semibold text-white">{formatPrice(t.exit_price)}</span>
+                          <span className="text-neutral-500 block text-[10px]">出場價格 (USD / 收回 ETH)</span>
+                          <span className="font-semibold text-white">{t.exit_price ? formatPrice(t.exit_price) : '—'}</span>
                           <span className="text-neutral-400 block text-[10px]">{formatEth(t.exit_eth)}</span>
                         </div>
                         <div className="rounded-none bg-white/[0.03] p-2.5 border border-white/5">
