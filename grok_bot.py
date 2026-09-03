@@ -23,7 +23,7 @@ LOG = "/root/rh_live/trades.csv"
 LOCK = "/root/rh_live/bot.lock"
 REVIEW_FILE = "/root/rh_live/review_history.json"
 CHAIN = "robinhood"
-WALLET = "0xYOUR_WALLET_ADDRESS"
+WALLET = "0x4d4e93fc85133b372ea6d360e0ba57293f6ea801"
 NATIVE = "0x0000000000000000000000000000000000000000"
 START_EQUITY = 5.07
 PER_TRADE = 5.0
@@ -463,7 +463,7 @@ class Sniper:
         args = ["swap", "--chain", CHAIN, "--from", WALLET,
                 "--input-token", NATIVE, "--output-token", addr,
                 "--amount", str(int(alloc_eth * ETH_DECIMALS)),
-                "--slippage", "15", "--yes"]  # 去掉 --gas-price 和 --condition-orders
+                "--slippage", "8", "--yes"]  # 2026-09-03: 15→8 砍 MEV 夾子利潤空間（buy_cost 實測虛高 8.6%）
         t0 = time.time()
         r = subprocess.run(["gmgn-cli", *args, "--raw"],
                            capture_output=True, text=True, timeout=60)  # 180→60
@@ -596,6 +596,7 @@ def settle(s, addr, p, sell_act, why, method, native_eth_out=None, fill_ratio=1.
         "exit_eth": round(native_eth_out, 6) if native_eth_out else None,
         "pnl_pct": round(pnl_pct, 1), "reason": why,
         "pnl_usd": round(pnl_usd, 2), "exit_usd": round(exit_usd, 2),
+        "alloc_usd": round(entry_usd, 2), "entry_usd": round(entry_usd, 2),
         "gas_usd": round(gas, 2), "method": method,
         "fill_ratio": round(fill_ratio, 2),
         "tx_in": p.get("tx_in", ""), "tx_out": tx[:26],
@@ -628,7 +629,7 @@ def close_position(addr, strat_open_ids):
     if bal and bal > 0:
         args = ["swap", "--chain", CHAIN, "--from", WALLET,
                 "--input-token", addr, "--output-token", NATIVE,
-                "--percent", "100", "--slippage", "25", "--yes"]  # 路4: auto gas
+                "--percent", "100", "--slippage", "12", "--yes"]  # 路4: auto gas；2026-09-03: 25→12 出場滑點收緊
         t0 = time.time()
         r = subprocess.run(["gmgn-cli", *args, "--raw"],
                            capture_output=True, text=True, timeout=60)  # 180→60
@@ -753,7 +754,7 @@ def tick(dry_run=False, scan_only=False):
                  "trigger_price": str(sl_trigger), "trigger_price_type": "market",
                  "sell_ratio": "100", "close_sell_model": "market"}
             ]
-            sell_param = {"ratio": "100", "order_type": "market", "slippage": "25"}
+            sell_param = {"ratio": "100", "order_type": "market", "slippage": "12"}
             try:
                 args = ["order", "strategy", "create", "--chain", CHAIN, "--from", WALLET,
                         "--base-token", addr, "--side", "sell",

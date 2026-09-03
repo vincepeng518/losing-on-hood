@@ -20,11 +20,11 @@ STATE = "/root/rh_live/state.json"
 LOG   = "/root/rh_live/trades.csv"
 LOCK  = "/root/rh_live/bot.lock"
 CHAIN = "robinhood"
-WALLET = "0xYOUR_WALLET_ADDRESS"
+WALLET = "0x4d4e93fc85133b372ea6d360e0ba57293f6ea801"
 NATIVE = "0x0000000000000000000000000000000000000000"
-START_EQUITY = 34.86
-PER_TRADE = 5.0
-MAX_OPEN = 4
+START_EQUITY = 110.0
+PER_TRADE = 10.0
+MAX_OPEN = 3
 MIN_GAS_ETH = 0.001
 GAS_PRICE = "0.3"
 TP_PCT = 60    # TP 條件單: +60% 賣 50%
@@ -181,6 +181,7 @@ def settle(s, addr, p, sell_act, why, method, native_eth_out=None):
         "exit_eth": round(native_eth_out, 6) if native_eth_out else None,
         "pnl_pct": round(pnl_pct, 1), "reason": why,
         "pnl_usd": round(pnl_usd, 2), "exit_usd": round(exit_usd, 2), "gas_usd": round(gas, 2),
+        "alloc_usd": round(entry_usd, 2), "entry_usd": round(entry_usd, 2),
         "method": method, "tx_in": p.get("tx_in", ""), "tx_out": tx[:26],
         "_buy_ts": p.get("opened_ts"),
         "score": p.get("score"), "snap": p.get("snap"),
@@ -297,6 +298,12 @@ def judge_exit(p, info, addr):
                     return True, f"fast dump 5m {((cl_x[-1]/cl_x[0])-1)*100:+.1f}% (peak +{peak*100:.0f}%)", peak, chg
             else:
                 return True, f"fast dump 5m {((cl_x[-1]/cl_x[0])-1)*100:+.1f}% (peak +{peak*100:.0f}%)", peak, chg
+    # 1.5) trail lock（2026-09-03 新增，實盤移動出場）: peak≥30% 啟動追蹤，
+    #      回撤跌破 peak×0.65 即出場。跟 giveback 差別：trail 的保底更高（0.65 固定 vs 0.5~0.7 分段），
+    #      且 1 分鐘 tick 即時檢查（配合 fast dump 豁免，形成「啟動後只看回撤」的移動停利）。
+    #      依據：48 筆逐 K 重測 7 筆真救回（STRATTON -17.7%→+80% 等），滑價折減後仍為正。
+    if peak >= 0.30 and peak < 3.0 and chg < peak * 0.65:
+        return True, f"trail lock (peak +{peak*100:.0f}%, now {chg*100:+.0f}%, floor +{peak*0.65*100:.0f}%)", peak, chg
     # 1) flow collapse（量價訊號不涉及計價單位，直接用 token_info 計數）
     if info:
         if (b1 + s1 >= 8 and s1 > b1 * 2) or (b5 + s5 >= 10 and s5 > b5 * 1.8):
@@ -323,7 +330,7 @@ def judge_exit(p, info, addr):
 
 # ================= swap 執行 =================
 def swap_and_confirm(input_token, output_token, amount_eth=None, percent=None,
-                     condition_orders=None, slippage=15, max_wait=90):
+                     condition_orders=None, slippage=8, max_wait=90):
     args = ["swap", "--chain", CHAIN, "--from", WALLET,
             "--input-token", input_token, "--output-token", output_token,
             "--slippage", str(slippage), "--gas-price", GAS_PRICE, "--yes"]
@@ -367,7 +374,7 @@ def close_position(addr, strat_open_ids):
     wallet → swap；escrow → 先 cancel 取回幣再 swap；unknown → 拒絕動作"""
     bal = token_balance_raw(addr)
     if bal and bal > 0:
-        ok, rep, oid = swap_and_confirm(addr, NATIVE, percent=100, slippage=25)
+        ok, rep, oid = swap_and_confirm(addr, NATIVE, percent=100, slippage=12)
         return ok, "swap", rep
     if addr in strat_open_ids:
         sid = strat_open_ids[addr]
@@ -380,7 +387,7 @@ def close_position(addr, strat_open_ids):
             time.sleep(8)
             bal = token_balance_raw(addr)
             if bal and bal > 0:
-                ok, rep, oid = swap_and_confirm(addr, NATIVE, percent=100, slippage=25)
+                ok, rep, oid = swap_and_confirm(addr, NATIVE, percent=100, slippage=12)
                 return ok, "cancel+swap", rep
         print("  cancel 後幣未回錢包 — 凍結此倉，需人工查")
         return False, "frozen", None
