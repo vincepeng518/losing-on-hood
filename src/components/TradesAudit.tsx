@@ -50,6 +50,17 @@ export const TradesAudit: React.FC<TradesAuditProps> = ({ trades, initialFilter 
     setExpandedIds({});
   };
 
+  // time 可能是 unix 秒數、ISO 字串（+08:00 / +00:00 混雜時區）——統一轉 ms
+  const tsNum = (t: unknown): number => {
+    if (typeof t === 'number') return t > 1e12 ? t : t * 1000;
+    if (typeof t === 'string') {
+      if (!isNaN(Number(t)) && !t.includes('-') && !t.includes('T')) return Number(t) > 1e12 ? Number(t) : Number(t) * 1000;
+      const d = new Date(t);
+      return isNaN(d.getTime()) ? 0 : d.getTime();
+    }
+    return 0;
+  };
+
   const filteredTrades = useMemo(() => {
     return trades.filter((t) => {
       // Filter tab
@@ -68,7 +79,7 @@ export const TradesAudit: React.FC<TradesAuditProps> = ({ trades, initialFilter 
         (m) => (m.agent || '').toLowerCase().includes(q) || (m.reason || '').toLowerCase().includes(q)
       );
       return matchSymbol || matchReason || matchMethod || matchAgent;
-    }).sort((a, b) => (Number(b.time) || 0) - (Number(a.time) || 0)); // 由新到舊
+    }).sort((a, b) => tsNum(b.time) - tsNum(a.time)); // 由新到舊（time 可能是 ISO 字串+混雜時區）
   }, [trades, activeFilter, searchTerm]);
 
   return (
