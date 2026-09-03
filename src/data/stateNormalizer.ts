@@ -160,7 +160,7 @@ export function normalizeAccountState(
     _onchain_usd: raw._onchain_usd != null ? Number(raw._onchain_usd) : undefined,
     positions,
     closed,
-    agent_log: agent_log.length > 0 ? agent_log : (fallback.agent_log || []),
+    agent_log: agent_log.length > 0 ? agent_log : (mode === 'live' ? [] : (fallback.agent_log || [])), // live 空就空，不吃 mock
     risk_status,
   };
 }
