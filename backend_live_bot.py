@@ -264,8 +264,12 @@ def entry_score(t, info, toks):
     if top10 is not None and top10 > 0.35: return 0, "top10 concentrated", {}
     if t.get("is_honeypot"): return 0, "honeypot", {}
     # dev 部分賣出≠rug (今日實證: dev sold veto 9 個中 3 個 survive); 只擋全賣
-    if t.get("creator_close") or (t.get("dev") or {}).get("creator_token_status") == "creator_close":
-        return 0, "dev fully sold", {}
+    # 但 KUMO 實證: <15min 新生幣的 creator_token_status 會抖動(close→hold), 幣齡<15min 不套用
+    _cts = (info or {}).get("creation_timestamp") or (t.get("dev") or {}).get("fund_from_ts")
+    age_min = (time.time() - _cts) / 60 if _cts else 999
+    if age_min >= 15:
+        if t.get("creator_close") or (t.get("dev") or {}).get("creator_token_status") == "creator_close":
+            return 0, "dev fully sold", {}
     if (t.get("bundler_rate") or 0) > 0.3: return 0, "bundled launch", {}
     if info.get("locked_ratio") == 0 and mc > 500_000: return 0, "big+unlocked", {}
     if launchpad_heat(toks, lp) >= 2: return 0, f"capital drain on {lp}", {}
