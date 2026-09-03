@@ -507,12 +507,11 @@ def tick():
                 "score": score,
                 "reason": rej or f"score={score} liq={int((t.get('liquidity') or 0)/1000)}k mc={int((t.get('market_cap') or 0)/1000)}k holders={t.get('holder_count') or 0}"})
             if len(s["agent_log"]) > 400: s["agent_log"] = s["agent_log"][-400:]  # 防爆檔
+            # 審過就記 seen（veto/approve 都記）：討論一次就夠，48h 冷卻防重複審查洗版
+            s["seen"][addr] = time.time()
             if rej or score < 6:  # 多討論少開倉: 門檻 5→6 (用戶指示, 樣本累積中)
-                if rej: s["seen"][addr] = time.time()  # 被閘門擋的也記，48h 內不重查
                 continue
-            if last_buy_ts > time.time() - 1800:
-                s["seen"][addr] = time.time()  # approve 但節流未開 → 也記 seen, 避免每 tick 重審洗版
-                break  # gas 節流: 開倉至少間隔 30 分（掃描仍記錄）
+            if last_buy_ts > time.time() - 1800: break  # gas 節流: 開倉至少間隔 30 分（掃描仍記錄）
             alloc_usd = min(PER_TRADE, s["equity_usd"] * 0.5, available * ep * 0.90)  # score 加碼移除: 未驗證, 50筆後再評
             if alloc_usd < 2.5: break
             alloc_eth = alloc_usd / ep
