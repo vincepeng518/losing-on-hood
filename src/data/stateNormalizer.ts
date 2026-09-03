@@ -82,9 +82,11 @@ export function normalizeAccountState(
             }))
           : [];
 
-        const alloc_usd = c.alloc_usd != null && !isNaN(Number(c.alloc_usd))
-          ? Number(c.alloc_usd)
-          : undefined;
+        const _allocRaw = Number(c.alloc_usd);
+        const alloc_usd = !isNaN(_allocRaw) && _allocRaw > 0
+          ? _allocRaw
+          // 舊紀錄無 alloc：由 pnl_pct 與 pnl_usd 反推 (alloc = pnl / pct×100)
+          : (Number(c.pnl_pct) && Number(c.pnl_usd) ? Math.abs(Number(c.pnl_usd) / (Number(c.pnl_pct) / 100)) : undefined);
         const pnl_usd = Number(c.pnl_usd) || 0;
         const peak = Number(c.peak) || 0;
         const peakUsd = alloc_usd != null 
@@ -96,8 +98,8 @@ export function normalizeAccountState(
           symbol: String(c.symbol || 'UNKNOWN'),
           time: String(c.time || new Date().toISOString()),
           alloc_usd,
-          entry_price: Number(c.entry_price) || 0,
-          exit_price: Number(c.exit_price) || 0,
+          entry_price: Number(c.entry_price) || Number(c.entry_usd) || 0,
+          exit_price: Number(c.exit_price) || Number(c.exit_usd) || 0,
           pnl_usd,
           pnl_pct: Number(c.pnl_pct) || 0,
           peak,
