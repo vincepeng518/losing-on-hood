@@ -523,7 +523,7 @@ def tick():
         open_ts = [p.get("opened_ts") or 0 for p in s["positions"].values()]
         last_buy_ts = max(open_ts) if open_ts else (s["closed"][-1].get("_buy_ts", 0) if s["closed"] else 0)
         buy_throttle = last_buy_ts > time.time() - 1800  # 1h→30min
-        for t in toks[:30]:
+        for t in toks[:75]:  # 聯集 ~70 幣全部進討論（舊 [:30] 把 1h/6h/1m 補充擋掉, 掃描面擴大形同虛設）
             if len(s["positions"]) >= MAX_OPEN: break
             addr = t["address"]
             if addr in s["positions"] or s["seen"].get(addr): continue
