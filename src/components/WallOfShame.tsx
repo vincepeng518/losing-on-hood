@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ClosedTrade } from '../types';
 import { formatUsd, formatPercent, formatTimestamp, translateReason, getExitDiagnosis } from '../formatters';
+import { Pagination } from './Pagination';
 import { Flame, AlertOctagon, TrendingDown, ArrowRight, ShieldAlert, Award } from 'lucide-react';
 
 interface WallOfShameProps {
@@ -9,25 +10,40 @@ interface WallOfShameProps {
 }
 
 export const WallOfShame: React.FC<WallOfShameProps> = ({ trades, onGoToSimulator }) => {
+  const [pageSize, setPageSize] = useState(25);
+  const [currentPage, setCurrentPage] = useState(1);
+
   // Filter trades that had high peak (>= 30%) and either closed negative or gave back > 60% of peak
-  const shameCandidates = trades
-    .filter((t) => (t.peak || 0) >= 30)
-    .map((t) => {
-      const peak = t.peak || 0;
-      const alloc = t.alloc_usd ?? (t.pnl_pct && t.pnl_usd ? Math.abs((t.pnl_usd / t.pnl_pct) * 100) : 0);
-      const peakUsd = (alloc * peak) / 100;
-      const realizedUsd = t.pnl_usd || 0;
-      const evaporatedUsd = Math.max(0, peakUsd - realizedUsd);
-      // Giveback ratio = how much of peak was wiped out
-      const givebackRatio = peakUsd > 0 ? (evaporatedUsd / peakUsd) * 100 : 0;
-      return {
-        ...t,
-        peakUsd,
-        evaporatedUsd,
-        givebackRatio,
-      };
-    })
-    .sort((a, b) => b.evaporatedUsd - a.evaporatedUsd);
+  const shameCandidates = useMemo(() => {
+    return trades
+      .filter((t) => (t.peak || 0) >= 30)
+      .map((t) => {
+        const peak = t.peak || 0;
+        const alloc = t.alloc_usd ?? (t.pnl_pct && t.pnl_usd ? Math.abs((t.pnl_usd / t.pnl_pct) * 100) : 0);
+        const peakUsd = (alloc * peak) / 100;
+        const realizedUsd = t.pnl_usd || 0;
+        const evaporatedUsd = Math.max(0, peakUsd - realizedUsd);
+        // Giveback ratio = how much of peak was wiped out
+        const givebackRatio = peakUsd > 0 ? (evaporatedUsd / peakUsd) * 100 : 0;
+        return {
+          ...t,
+          peakUsd,
+          evaporatedUsd,
+          givebackRatio,
+        };
+      })
+      .sort((a, b) => b.evaporatedUsd - a.evaporatedUsd);
+  }, [trades]);
+
+  // Reset page when trades list or pageSize changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [trades, pageSize]);
+
+  const paginatedCandidates = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return shameCandidates.slice(start, start + pageSize);
+  }, [shameCandidates, currentPage, pageSize]);
 
   const totalEvaporated = shameCandidates.reduce((sum, item) => sum + item.evaporatedUsd, 0);
 
@@ -76,9 +92,10 @@ export const WallOfShame: React.FC<WallOfShameProps> = ({ trades, onGoToSimulato
             目前無重大浮盈回吐標的，策略停利執行穩健
           </div>
         ) : (
-          shameCandidates.map((item, index) => {
+          paginatedCandidates.map((item, index) => {
             const diagnosis = getExitDiagnosis(item.exit_reason, item.method);
             const isNegative = item.pnl_usd < 0;
+            const rankNum = (currentPage - 1) * pageSize + index + 1;
 
             return (
               <div
@@ -89,7 +106,7 @@ export const WallOfShame: React.FC<WallOfShameProps> = ({ trades, onGoToSimulato
                   {/* Rank & Token Info */}
                   <div className="flex items-start gap-3 sm:gap-4">
                     <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-none bg-white/5 border border-white/10 font-mono text-xs sm:text-sm font-bold text-neutral-300">
-                      #{index + 1}
+                      #{rankNum}
                     </div>
 
                     <div>
@@ -149,6 +166,23 @@ export const WallOfShame: React.FC<WallOfShameProps> = ({ trades, onGoToSimulato
           })
         )}
       </div>
+
+      {/* Pagination Footer */}
+      {shameCandidates.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalItems={shameCandidates.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          pageSizeOptions={[10, 25, 50]}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setCurrentPage(1);
+          }}
+          itemLabel="筆恥辱榜紀錄"
+          accentColor="red"
+        />
+      )}
     </div>
   );
 };

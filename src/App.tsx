@@ -101,10 +101,16 @@ export const App: React.FC = () => {
 
         if (paperRes.status === 'fulfilled' && paperRes.value.ok) {
           try {
-            const data = await paperRes.value.json();
-            if (data && typeof data === 'object' && Object.keys(data).length > 0) {
-              setPaperState((prev) => normalizeAccountState(data, 'paper', prev));
-              anySuccess = true;
+            const raw = await paperRes.value.text();
+            const trimmed = raw ? raw.trim() : '';
+            if (trimmed && !trimmed.startsWith('<')) {
+              const data = JSON.parse(trimmed);
+              if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+                setPaperState((prev) => normalizeAccountState(data, 'paper', prev));
+                anySuccess = true;
+              }
+            } else if (trimmed.startsWith('<')) {
+              console.warn('/api/state returned HTML instead of JSON');
             }
           } catch (e) {
             console.error('Failed to parse /api/state JSON:', e);
@@ -113,10 +119,16 @@ export const App: React.FC = () => {
 
         if (liveRes.status === 'fulfilled' && liveRes.value.ok) {
           try {
-            const data = await liveRes.value.json();
-            if (data && typeof data === 'object' && Object.keys(data).length > 0) {
-              setLiveState((prev) => normalizeAccountState(data, 'live', prev));
-              anySuccess = true;
+            const raw = await liveRes.value.text();
+            const trimmed = raw ? raw.trim() : '';
+            if (trimmed && !trimmed.startsWith('<')) {
+              const data = JSON.parse(trimmed);
+              if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+                setLiveState((prev) => normalizeAccountState(data, 'live', prev));
+                anySuccess = true;
+              }
+            } else if (trimmed.startsWith('<')) {
+              console.warn('/api/live returned HTML instead of JSON');
             }
           } catch (e) {
             console.error('Failed to parse /api/live JSON:', e);

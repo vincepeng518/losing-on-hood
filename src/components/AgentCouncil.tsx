@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { AgentCouncilLogItem, AgentName, AgentVerdict, ClosedTrade, AgentWeightsConfig } from '../types';
 import { calculateAgentStats } from '../tradeEnricher';
 import { formatTimestamp, translateReason, getAgentColor } from '../formatters';
+import { Pagination } from './Pagination';
 import { 
   Users, 
   ShieldCheck, 
@@ -118,6 +119,19 @@ export const AgentCouncil: React.FC<AgentCouncilProps> = ({
       );
     }).sort((a, b) => (b.ts || 0) - (a.ts || 0)); // 由新到舊
   }, [logs, selectedAgent, selectedVerdict, searchTerm]);
+
+  const [pageSize, setPageSize] = useState(25);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Reset to page 1 whenever filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedAgent, selectedVerdict, searchTerm, pageSize]);
+
+  const paginatedLogs = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredLogs.slice(start, start + pageSize);
+  }, [filteredLogs, currentPage, pageSize]);
 
   // Overall counts
   const totalLogs = logs.length;
@@ -515,7 +529,7 @@ export const AgentCouncil: React.FC<AgentCouncilProps> = ({
             查無符合條件的 5-Agent 審計事件
           </div>
         ) : (
-          filteredLogs.map((log) => {
+          paginatedLogs.map((log) => {
             const style = getAgentColor(log.agent);
             const isApproved = log.verdict === 'approve';
 
@@ -574,6 +588,23 @@ export const AgentCouncil: React.FC<AgentCouncilProps> = ({
           })
         )}
       </div>
+
+      {/* Pagination Footer */}
+      {filteredLogs.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalItems={filteredLogs.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          pageSizeOptions={[25, 50, 100]}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setCurrentPage(1);
+          }}
+          itemLabel="筆審議歷史紀錄"
+          accentColor="indigo"
+        />
+      )}
     </div>
   );
 };

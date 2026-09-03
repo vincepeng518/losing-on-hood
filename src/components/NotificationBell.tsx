@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { DangerToast } from '../types';
-import { Bell, ShieldAlert, AlertOctagon, CheckCheck, Trash2, X, PlusCircle, ShieldCheck } from 'lucide-react';
+import { Bell, ShieldAlert, AlertOctagon, CheckCheck, Trash2, X, PlusCircle, ShieldCheck, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatTimestamp } from '../formatters';
 
 interface NotificationBellProps {
@@ -18,6 +18,8 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [simulatedSuccess, setSimulatedSuccess] = useState<boolean>(false);
+  const [page, setPage] = useState<number>(1);
+  const pageSize = 5;
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close when clicking outside
@@ -37,6 +39,17 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
   }, [isOpen]);
 
   const count = notifications.length;
+  const totalPages = Math.max(1, Math.ceil(count / pageSize));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+
+  // Reset page when count changes and safePage exceeds totalPages
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [totalPages, page]);
+
+  const paginatedNotifications = notifications.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   return (
     <div className="relative inline-block" ref={dropdownRef}>
@@ -147,7 +160,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
                 </p>
               </div>
             ) : (
-              notifications.map((t) => (
+              paginatedNotifications.map((t) => (
                 <div
                   key={t.id}
                   className="group relative p-3 transition-colors hover:bg-white/[0.03]"
@@ -201,6 +214,33 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
               ))
             )}
           </div>
+
+          {/* Mini Pagination Bar when totalPages > 1 */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-white/10 bg-neutral-900/90 px-3 py-1.5 font-mono text-[11px] text-neutral-400">
+              <span>
+                第 <span className="text-white font-bold">{safePage}</span> / {totalPages} 頁 (共 {count} 則)
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage(Math.max(1, safePage - 1))}
+                  disabled={safePage === 1}
+                  className="flex h-5 w-5 items-center justify-center rounded border border-white/10 bg-black/40 text-neutral-300 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
+                  title="上一頁"
+                >
+                  <ChevronLeft className="h-3 w-3" />
+                </button>
+                <button
+                  onClick={() => setPage(Math.min(totalPages, safePage + 1))}
+                  disabled={safePage === totalPages}
+                  className="flex h-5 w-5 items-center justify-center rounded border border-white/10 bg-black/40 text-neutral-300 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
+                  title="下一頁"
+                >
+                  <ChevronRight className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Footer */}
           <div className="border-t border-white/10 bg-neutral-950 px-3.5 py-2 text-center text-[10px] font-mono text-neutral-500">

@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ClosedTrade } from '../types';
+import { Pagination } from './Pagination';
 import { 
   formatUsd, 
   formatPercent, 
@@ -35,6 +36,13 @@ export const TradesAudit: React.FC<TradesAuditProps> = ({ trades, initialFilter 
   const [activeFilter, setActiveFilter] = useState(initialFilter);
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
   const [showRawSignals, setShowRawSignals] = useState(false);
+  const [pageSize, setPageSize] = useState(25);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Reset to page 1 whenever filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeFilter, searchTerm, pageSize]);
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -42,7 +50,7 @@ export const TradesAudit: React.FC<TradesAuditProps> = ({ trades, initialFilter 
 
   const expandAll = () => {
     const all: Record<string, boolean> = {};
-    trades.forEach((t) => (all[t.id] = true));
+    paginatedTrades.forEach((t) => (all[t.id] = true));
     setExpandedIds(all);
   };
 
@@ -81,6 +89,11 @@ export const TradesAudit: React.FC<TradesAuditProps> = ({ trades, initialFilter 
       return matchSymbol || matchReason || matchMethod || matchAgent;
     }).sort((a, b) => tsNum(b.time) - tsNum(a.time)); // 由新到舊（time 可能是 ISO 字串+混雜時區）
   }, [trades, activeFilter, searchTerm]);
+
+  const paginatedTrades = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredTrades.slice(start, start + pageSize);
+  }, [filteredTrades, currentPage, pageSize]);
 
   return (
     <div className="space-y-6">
@@ -159,7 +172,7 @@ export const TradesAudit: React.FC<TradesAuditProps> = ({ trades, initialFilter 
             <p className="font-mono text-xs text-neutral-400">沒有符合搜尋或篩選條件的交易紀錄</p>
           </div>
         ) : (
-          filteredTrades.map((t) => {
+          paginatedTrades.map((t) => {
             const isExpanded = !!expandedIds[t.id];
             const isProfit = t.pnl_usd >= 0;
             const diagnosis = getExitDiagnosis(t.exit_reason, t.method);
@@ -349,6 +362,23 @@ export const TradesAudit: React.FC<TradesAuditProps> = ({ trades, initialFilter 
           })
         )}
       </div>
+
+      {/* Pagination Footer */}
+      {filteredTrades.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalItems={filteredTrades.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          pageSizeOptions={[25, 50, 100]}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setCurrentPage(1);
+          }}
+          itemLabel="筆歷史平倉紀錄"
+          accentColor="rose"
+        />
+      )}
     </div>
   );
 };

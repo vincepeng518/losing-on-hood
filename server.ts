@@ -21,15 +21,25 @@ function getPaperStateFile(): string {
   }
   return tradePath;
 }
-const LIVE_STATE_FILE = path.resolve(process.cwd(), "state.json");
+function getLiveStateFile(): string {
+  const rootLive = path.resolve(process.cwd(), "state.json");
+  if (fs.existsSync(rootLive)) return rootLive;
+  const archiveLive = path.resolve(process.cwd(), "paper_data/live_archive_old_strategy.json");
+  if (fs.existsSync(archiveLive)) return archiveLive;
+  const dataLive = path.resolve(process.cwd(), "paper_data/state.json");
+  if (fs.existsSync(dataLive)) return dataLive;
+  return rootLive;
+}
 
 function loadJson(filePath: string, fallback: any = {}): any {
   try {
-    if (fs.existsSync(filePath)) {
-      const data = fs.readFileSync(filePath, "utf-8");
-      const parsed = JSON.parse(data);
-      if (parsed && typeof parsed === "object" && Object.keys(parsed).length > 0) {
-        return parsed;
+    if (filePath && fs.existsSync(filePath)) {
+      const data = fs.readFileSync(filePath, "utf-8").trim();
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (parsed && typeof parsed === "object" && Object.keys(parsed).length > 0) {
+          return parsed;
+        }
       }
     }
   } catch (err) {
@@ -361,7 +371,7 @@ app.get("/api/state", (_req: Request, res: Response) => {
 
 // API live state endpoint
 app.get("/api/live", (_req: Request, res: Response) => {
-  const live = loadJson(LIVE_STATE_FILE);
+  const live = loadJson(getLiveStateFile());
   if (!live._onchain_usd && live.equity_usd) {
     live._onchain_usd = live.equity_usd;
   }
@@ -377,7 +387,7 @@ app.get(["/", "/index.html"], (_req: Request, res: Response) => {
   }
   const rawHtml = fs.readFileSync(DASHBOARD_FILE, "utf-8");
   const paper = loadJson(getPaperStateFile());
-  const live = loadJson(LIVE_STATE_FILE);
+  const live = loadJson(getLiveStateFile());
   if (!live._onchain_usd && live.equity_usd) {
     live._onchain_usd = live.equity_usd;
   }
@@ -397,7 +407,7 @@ app.get("*", (_req: Request, res: Response) => {
   }
   const rawHtml = fs.readFileSync(DASHBOARD_FILE, "utf-8");
   const paper = loadJson(getPaperStateFile());
-  const live = loadJson(LIVE_STATE_FILE);
+  const live = loadJson(getLiveStateFile());
   if (!live._onchain_usd && live.equity_usd) {
     live._onchain_usd = live.equity_usd;
   }
