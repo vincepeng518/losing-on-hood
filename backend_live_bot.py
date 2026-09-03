@@ -79,6 +79,20 @@ def token_info(addr):
     except Exception:
         return None
 
+
+def _to_int(v, default=0):
+    """安全整數解析: None/浮點字串/科學記號都接 (2026-09-04 子agent審計修)"""
+    try:
+        return int(float(v))
+    except (TypeError, ValueError):
+        return default
+
+def _to_float(v, default=0.0):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return default
+
 def token_balance_raw(addr):
     try:
         d = gm("portfolio", "token-balance", "--chain", CHAIN, "--wallet", WALLET, "--token", addr)
@@ -456,7 +470,12 @@ def snapshot(s, acts_map, strat_open_ids):
         total += val
         lines.append(f"  {p['symbol']}: {chg*100:+.1f}% ≈ ${val:.2f}")
     # quote 幣殘餘（TP1/條件單賣出收款未換回）
-    s["_last_snapshot"] = {"ts": time.time(), "total_usd": round(total, 2), "eth": eth}
+    # 2026-09-04 修 (子agent審計): 註解宣稱有 quote 殘餘盤點但實作漏空 — 託管賣出收款在平台側,
+    # 鏈上盤點看不到 → WARN 帳差嫌疑. 誠實化: pending/escrow 殘餘獨立列示不虛入 total
+    pend_quote = sum(float(p.get("entry_quote_qty") or 0) for p in s["positions"].values() if p.get("custody") == "escrow")
+    if pend_quote:
+        lines.append(f"  [託管] quote 殘餘 {pend_quote:.4f} (平台側, 鏈上盤點不含 — WARN 帳差候選)")
+    s["_last_snapshot"] = {"ts": time.time(), "total_usd": round(total, 2), "eth": eth, "pend_quote": round(pend_quote, 4)}
     return total, lines
 
 # ================= 主流程 =================
@@ -477,13 +496,18 @@ def tick():
             print(f"  {p['symbol']} custody=unknown — 凍結，需人工查")
             continue
         # 條件單成交偵測（sell act + 餘額 0）
+        # 2026-09-04 修 (子agent審計): token_balance_raw 異常回 None — None≠0,
+        # 舊代碼 None 是 falsy → API 異常時把仍持倉的倉錯誤平倉
         bal = token_balance_raw(addr)
-        if sells and not bal:
+        if bal is None:
+            print(f"  {p['symbol']} balance API 異常 — 本輪跳過平倉判斷, 下輪重查")
+            continue
+        if sells and bal == 0:
             a = sells[-1]
             if settle(s, addr, p, a, "condition order filled", "cond"):
                 del s["positions"][addr]
             continue
-        if sells and bal:
+        if sells and bal > 0:
             # TP1 半倉 (#6)
             reduce_position(s, addr, p, sells)
             continue
@@ -635,15 +659,22 @@ def tick():
                 time.sleep(5)
                 my_buy = latest_buy(addr)
             # 記帳: 鏈上 tx value 是唯一真相（GMGN buy_cost_usd 實測虛高 ~8.6%）
-            spent_eth = int(rep.get("input_amount","0"))/ETH_DECIMALS
+            in_raw = _to_int(rep.get("input_amount"))
+            out_raw = _to_int(rep.get("output_amount"))
+            # report 欄位缺失時用 activity 成交紀錄當後備 (2026-09-04 子agent審計修: int(None) 會炸掉記帳, 已花 ETH 卻不留倉)
+            if not in_raw and my_buy:
+                in_raw = _to_int(my_buy.get("input_amount"))
+            if not out_raw and my_buy:
+                out_raw = _to_int(my_buy.get("output_amount"))
+            spent_eth = in_raw / ETH_DECIMALS
             buy_cost_usd = spent_eth * ep
-            quote_qty = float((my_buy or {}).get("quote_amount") or 0)
+            quote_qty = _to_float((my_buy or {}).get("quote_amount"))
             s["seen"][addr] = time.time()
             s["positions"][addr] = {
-                "symbol": sym, "entry_eth": int(rep.get("input_amount","0"))/ETH_DECIMALS,
-                "alloc_usd": buy_cost_usd, "entry_usd": buy_cost_usd, "entry_ep": ep, "gas_usd": float((my_buy or {}).get("gas_usd") or 0),
-                "token_amount": int(rep.get("output_amount","0")),
-                "token_decimals": int(rep.get("output_token_decimals","18") or 18),
+                "symbol": sym, "entry_eth": spent_eth,
+                "alloc_usd": buy_cost_usd, "entry_usd": buy_cost_usd, "entry_ep": ep, "gas_usd": _to_float((my_buy or {}).get("gas_usd")),
+                "token_amount": out_raw,
+                "token_decimals": _to_int(rep.get("output_token_decimals") or (my_buy or {}).get("output_token_decimals") or 18, 18),
                 "opened_ts": time.time(), "score": score, "snap": snap, "tx_in": oid,
                 "entry_quote_qty": quote_qty,
                 "custody": "escrow",  # 帶條件單開倉 = 幣在託管
