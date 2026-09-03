@@ -10,7 +10,17 @@ const DASHBOARD_FILE = fs.existsSync(path.resolve(process.cwd(), "index.html"))
   ? path.resolve(process.cwd(), "index.html")
   : path.resolve(process.cwd(), "paper_trade/dashboard.html");
 
-const PAPER_STATE_FILE = path.resolve(process.cwd(), "paper_trade/paper_state.json");
+function getPaperStateFile(): string {
+  const dataPath = path.resolve(process.cwd(), "paper_data/paper_state.json");
+  const tradePath = path.resolve(process.cwd(), "paper_trade/paper_state.json");
+  if (fs.existsSync(dataPath)) {
+    if (!fs.existsSync(tradePath)) return dataPath;
+    const dataStat = fs.statSync(dataPath);
+    const tradeStat = fs.statSync(tradePath);
+    return dataStat.size >= tradeStat.size ? dataPath : tradePath;
+  }
+  return tradePath;
+}
 const LIVE_STATE_FILE = path.resolve(process.cwd(), "state.json");
 
 function loadJson(filePath: string, fallback: any = {}): any {
@@ -344,7 +354,7 @@ app.get("/api/health", (_req: Request, res: Response) => {
 
 // API paper state endpoint
 app.get("/api/state", (_req: Request, res: Response) => {
-  const paper = loadJson(PAPER_STATE_FILE);
+  const paper = loadJson(getPaperStateFile());
   res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   res.json(paper);
 });
@@ -366,7 +376,7 @@ app.get(["/", "/index.html"], (_req: Request, res: Response) => {
     return;
   }
   const rawHtml = fs.readFileSync(DASHBOARD_FILE, "utf-8");
-  const paper = loadJson(PAPER_STATE_FILE);
+  const paper = loadJson(getPaperStateFile());
   const live = loadJson(LIVE_STATE_FILE);
   if (!live._onchain_usd && live.equity_usd) {
     live._onchain_usd = live.equity_usd;
@@ -386,7 +396,7 @@ app.get("*", (_req: Request, res: Response) => {
     return;
   }
   const rawHtml = fs.readFileSync(DASHBOARD_FILE, "utf-8");
-  const paper = loadJson(PAPER_STATE_FILE);
+  const paper = loadJson(getPaperStateFile());
   const live = loadJson(LIVE_STATE_FILE);
   if (!live._onchain_usd && live.equity_usd) {
     live._onchain_usd = live.equity_usd;

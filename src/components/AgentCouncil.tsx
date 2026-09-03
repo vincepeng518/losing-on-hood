@@ -166,18 +166,18 @@ export const AgentCouncil: React.FC<AgentCouncilProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-3 font-mono text-xs">
-            <div className="rounded-2xl border border-white/10 bg-black/60 p-3 text-center">
-              <span className="text-neutral-500 block text-[10px]">審核事件</span>
-              <span className="text-base font-bold text-white">{totalLogs} 次</span>
+          <div className="grid grid-cols-3 gap-2 font-mono text-xs w-full sm:w-auto">
+            <div className="rounded-none border border-white/10 bg-black/60 p-2 sm:p-3 text-center">
+              <span className="text-neutral-500 block text-[9px] sm:text-[10px]">審核事件</span>
+              <span className="text-sm sm:text-base font-bold text-white">{totalLogs} 次</span>
             </div>
-            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/30 p-3 text-center">
-              <span className="text-neutral-500 block text-[10px]">放行通過</span>
-              <span className="text-base font-bold text-emerald-400">{approvedCount}</span>
+            <div className="rounded-none border border-emerald-500/30 bg-emerald-950/30 p-2 sm:p-3 text-center">
+              <span className="text-neutral-500 block text-[9px] sm:text-[10px]">放行通過</span>
+              <span className="text-sm sm:text-base font-bold text-emerald-400">{approvedCount}</span>
             </div>
-            <div className="rounded-2xl border border-rose-500/30 bg-rose-950/30 p-3 text-center">
-              <span className="text-neutral-500 block text-[10px]">風控否決 (VETO)</span>
-              <span className="text-base font-bold text-rose-400">{vetoCount}</span>
+            <div className="rounded-none border border-rose-500/30 bg-rose-950/30 p-2 sm:p-3 text-center">
+              <span className="text-neutral-500 block text-[9px] sm:text-[10px]">風控否決</span>
+              <span className="text-sm sm:text-base font-bold text-rose-400">{vetoCount}</span>
             </div>
           </div>
         </div>
@@ -461,37 +461,38 @@ export const AgentCouncil: React.FC<AgentCouncilProps> = ({
             return (
               <div
                 key={log.id}
-                className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-2xl border p-4 backdrop-blur-md transition-all ${
+                className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-none border p-3 sm:p-4 backdrop-blur-md transition-all ${
                   isApproved
                     ? 'border-white/10 bg-white/[0.02] hover:border-white/20'
                     : 'border-rose-500/30 bg-rose-950/10 hover:border-rose-500/50'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <span className="font-mono text-xs text-neutral-500">
-                    {formatTimestamp(log.ts)}
-                  </span>
-
-                  <span className={`w-24 rounded-md border ${style.border} ${style.bg} ${style.text} px-2 py-0.5 text-center font-mono text-xs font-bold uppercase`}>
-                    {log.agent}
-                  </span>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="font-mono text-[11px] sm:text-xs text-neutral-500">
+                      {formatTimestamp(log.ts)}
+                    </span>
+                    <span className={`w-20 sm:w-24 rounded-none border ${style.border} ${style.bg} ${style.text} px-1.5 sm:px-2 py-0.5 text-center font-mono text-[10px] sm:text-xs font-bold uppercase`}>
+                      {log.agent}
+                    </span>
+                  </div>
 
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                       <span className="font-mono text-sm font-bold text-white">${log.token}</span>
-                      <span className={`flex items-center gap-0.5 rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold ${
+                      <span className={`flex items-center gap-0.5 rounded-none px-1.5 py-0.5 font-mono text-[10px] font-bold ${
                         isApproved ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'
                       }`}>
                         {isApproved ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
                         <span>{isApproved ? '放行 (OK)' : '一票否決 (VETO)'}</span>
                       </span>
                       {log.danger_type === 'honeypot' && (
-                        <span className="rounded bg-rose-600 px-1 py-0.2 font-mono text-[9px] font-bold text-white">
+                        <span className="rounded-none bg-rose-600 px-1 py-0.2 font-mono text-[9px] font-bold text-white">
                           HONEYPOT
                         </span>
                       )}
                       {log.danger_type === 'whale_concentration' && (
-                        <span className="rounded bg-amber-600 px-1 py-0.2 font-mono text-[9px] font-bold text-white">
+                        <span className="rounded-none bg-amber-600 px-1 py-0.2 font-mono text-[9px] font-bold text-white">
                           WHALE &gt;60%
                         </span>
                       )}
@@ -503,7 +504,7 @@ export const AgentCouncil: React.FC<AgentCouncilProps> = ({
                   </div>
                 </div>
 
-                <div className="self-end sm:self-center text-right font-mono text-xs">
+                <div className="self-end sm:self-center text-right font-mono text-xs shrink-0">
                   <span className="text-neutral-500">評分: </span>
                   <span className="font-bold text-white">{log.score} 分</span>
                 </div>

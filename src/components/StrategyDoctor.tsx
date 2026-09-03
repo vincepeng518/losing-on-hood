@@ -90,31 +90,31 @@ export const StrategyDoctor: React.FC<StrategyDoctorProps> = ({
   return (
     <div className="space-y-6">
       {/* Header Doctor Banner */}
-      <div className={`relative overflow-hidden rounded-none border p-6 shadow-2xl backdrop-blur-md ${
+      <div className={`relative overflow-hidden rounded-none border p-4 sm:p-6 shadow-2xl backdrop-blur-md ${
         isDemonstrationMode 
           ? 'border-amber-500/40 bg-gradient-to-br from-amber-950/30 via-neutral-900/70 to-black'
           : 'border-emerald-500/40 bg-gradient-to-br from-emerald-950/30 via-neutral-900/70 to-black'
       }`}>
         <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
-          <div className="flex items-start gap-4">
-            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-none border ${
+          <div className="flex items-start gap-3 sm:gap-4">
+            <div className={`flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-none border ${
               isDemonstrationMode 
                 ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' 
                 : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
             }`}>
-              <Stethoscope className="h-6 w-6" />
+              <Stethoscope className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-bold tracking-tight text-white">
+                <h2 className="text-lg sm:text-xl font-bold tracking-tight text-white">
                   策略診斷與動態回測儀 (Strategy Doctor)
                 </h2>
                 {isDemonstrationMode ? (
-                  <span className="rounded-none bg-amber-500/20 border border-amber-500/40 px-2.5 py-0.5 font-mono text-xs font-bold text-amber-300">
+                  <span className="rounded-none bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 font-mono text-[10px] sm:text-xs font-bold text-amber-300">
                     示範模式 (DEMO MODE)
                   </span>
                 ) : (
-                  <span className="rounded-none bg-emerald-500/20 border border-emerald-500/40 px-2.5 py-0.5 font-mono text-xs font-bold text-emerald-300 flex items-center gap-1">
+                  <span className="rounded-none bg-emerald-500/20 border border-emerald-500/40 px-2 py-0.5 font-mono text-[10px] sm:text-xs font-bold text-emerald-300 flex items-center gap-1">
                     <Radio className="h-3 w-3 animate-pulse text-emerald-400" />
                     鏈上真實平倉數據 · 即時回測中
                   </span>
@@ -143,7 +143,7 @@ export const StrategyDoctor: React.FC<StrategyDoctorProps> = ({
           {hasRealTrades && (
             <button
               onClick={() => setForceDemoMode(!forceDemoMode)}
-              className="shrink-0 rounded-none border border-white/20 bg-white/5 hover:bg-white/10 px-3 py-1.5 font-mono text-xs text-neutral-300 transition-all"
+              className="shrink-0 rounded-none border border-white/20 bg-white/5 hover:bg-white/10 px-3 py-1.5 font-mono text-xs text-neutral-300 transition-all w-full sm:w-auto text-center"
             >
               {forceDemoMode ? '切回真實平倉資料' : '切換為示範模式'}
             </button>
@@ -163,7 +163,7 @@ export const StrategyDoctor: React.FC<StrategyDoctorProps> = ({
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Module 1: Trailing Take-Profit Simulator */}
-        <div className="rounded-none border border-white/10 bg-white/[0.03] p-6 backdrop-blur-md shadow-xl space-y-6">
+        <div className="rounded-none border border-white/10 bg-white/[0.03] p-4 sm:p-6 backdrop-blur-md shadow-xl space-y-6">
           <div className="flex items-center justify-between border-b border-white/10 pb-4">
             <div className="flex items-center gap-2">
               <Sliders className="h-5 w-5 text-emerald-400" />
@@ -249,7 +249,7 @@ export const StrategyDoctor: React.FC<StrategyDoctorProps> = ({
         </div>
 
         {/* Module 2: Gas Handicap Calculator */}
-        <div className="rounded-none border border-white/10 bg-white/[0.03] p-6 backdrop-blur-md shadow-xl space-y-6">
+        <div className="rounded-none border border-white/10 bg-white/[0.03] p-4 sm:p-6 backdrop-blur-md shadow-xl space-y-6">
           <div className="flex items-center justify-between border-b border-white/10 pb-4">
             <div className="flex items-center gap-2">
               <Flame className="h-5 w-5 text-amber-500" />
@@ -314,7 +314,7 @@ export const StrategyDoctor: React.FC<StrategyDoctorProps> = ({
       </div>
 
       {/* Module 3: Bot Code Patch */}
-      <div className="rounded-none border border-white/10 bg-white/[0.03] p-6 backdrop-blur-md shadow-xl space-y-4">
+      <div className="rounded-none border border-white/10 bg-white/[0.03] p-4 sm:p-6 backdrop-blur-md shadow-xl space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
           <div className="flex items-center gap-2">
             <Code2 className="h-5 w-5 text-purple-400" />
@@ -330,7 +330,7 @@ export const StrategyDoctor: React.FC<StrategyDoctorProps> = ({
 
           <button
             onClick={copyToClipboard}
-            className="flex items-center gap-1.5 rounded-none bg-purple-500/20 border border-purple-500/40 px-3.5 py-1.5 font-mono text-xs font-bold text-purple-300 hover:bg-purple-500/30 transition-all shadow-lg"
+            className="flex items-center justify-center gap-1.5 rounded-none bg-purple-500/20 border border-purple-500/40 px-3.5 py-1.5 font-mono text-xs font-bold text-purple-300 hover:bg-purple-500/30 transition-all shadow-lg w-full sm:w-auto"
           >
             {copiedCode ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
             <span>{copiedCode ? '已複製到剪貼簿' : '複製 Python 修復代碼'}</span>

@@ -97,7 +97,15 @@ export function formatEth(eth?: number | null): string {
 
 export function formatTimestamp(tsOrDate: number | string): string {
   if (!tsOrDate) return '--:--';
-  const d = typeof tsOrDate === 'string' ? new Date(tsOrDate) : new Date(tsOrDate > 1e12 ? tsOrDate : tsOrDate * 1000);
+  let d: Date;
+  if (typeof tsOrDate === 'number') {
+    d = new Date(tsOrDate > 1e12 ? tsOrDate : tsOrDate * 1000);
+  } else if (!isNaN(Number(tsOrDate)) && !tsOrDate.includes('-') && !tsOrDate.includes('T')) {
+    const num = Number(tsOrDate);
+    d = new Date(num > 1e12 ? num : num * 1000);
+  } else {
+    d = new Date(tsOrDate);
+  }
   if (isNaN(d.getTime())) return String(tsOrDate);
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');

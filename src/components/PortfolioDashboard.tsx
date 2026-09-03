@@ -308,23 +308,23 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
       )}
 
       {/* KPI Grid */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {/* Card 1: Current Equity */}
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-md transition-all hover:border-white/20">
+        <div className="rounded-none border border-white/10 bg-white/[0.03] p-3 sm:p-4 backdrop-blur-md transition-all hover:border-white/20">
           <div className="flex items-center justify-between text-xs text-neutral-400">
             <span>當前帳戶淨值</span>
             <Wallet className="h-3.5 w-3.5 text-neutral-500" />
           </div>
-          <div className="mt-2 font-mono text-xl font-bold tracking-tight text-white">
+          <div className="mt-1.5 sm:mt-2 font-mono text-lg sm:text-xl font-bold tracking-tight text-white">
             {formatUsd(state.equity_usd ?? state.current_equity ?? state.start_equity)}
           </div>
-          <div className="mt-1 flex items-center gap-1 font-mono text-[11px] text-neutral-400">
+          <div className="mt-1 flex items-center gap-1 font-mono text-[10px] sm:text-[11px] text-neutral-400">
             <span>初始本金: {formatUsd(state.start_equity)}</span>
           </div>
         </div>
 
         {/* Card 2: Realized PnL */}
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-md transition-all hover:border-white/20">
+        <div className="rounded-none border border-white/10 bg-white/[0.03] p-3 sm:p-4 backdrop-blur-md transition-all hover:border-white/20">
           <div className="flex items-center justify-between text-xs text-neutral-400">
             <span>已實現損益</span>
             {isNetPositive ? (
@@ -333,24 +333,24 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
               <TrendingDown className="h-3.5 w-3.5 text-rose-400" />
             )}
           </div>
-          <div className={`mt-2 font-mono text-xl font-bold tracking-tight ${isNetPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+          <div className={`mt-1.5 sm:mt-2 font-mono text-lg sm:text-xl font-bold tracking-tight ${isNetPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
             {formatUsd(totalRealizedPnl, { showPlus: true })}
           </div>
-          <div className="mt-1 flex items-center gap-1 font-mono text-[11px] text-neutral-400">
+          <div className="mt-1 flex items-center gap-1 font-mono text-[10px] sm:text-[11px] text-neutral-400">
             <span>已平倉 {closedTrades.length} 筆</span>
           </div>
         </div>
 
         {/* Card 3: Win Rate */}
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-md transition-all hover:border-white/20">
+        <div className="rounded-none border border-white/10 bg-white/[0.03] p-3 sm:p-4 backdrop-blur-md transition-all hover:border-white/20">
           <div className="flex items-center justify-between text-xs text-neutral-400">
             <span>勝率 (Win Rate)</span>
             <Percent className="h-3.5 w-3.5 text-neutral-500" />
           </div>
-          <div className="mt-2 font-mono text-xl font-bold tracking-tight text-white">
+          <div className="mt-1.5 sm:mt-2 font-mono text-lg sm:text-xl font-bold tracking-tight text-white">
             {winRate.toFixed(0)}%
           </div>
-          <div className="mt-1 flex items-center gap-1 font-mono text-[11px] text-neutral-400">
+          <div className="mt-1 flex items-center gap-1 font-mono text-[10px] sm:text-[11px] text-neutral-400">
             <span className="text-emerald-400">{winningTrades.length} 勝</span>
             <span>/</span>
             <span className="text-rose-400">{closedTrades.length - winningTrades.length} 負</span>
@@ -358,68 +358,68 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
         </div>
 
         {/* Card 4: Gas Spent */}
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-md transition-all hover:border-white/20">
+        <div className="rounded-none border border-white/10 bg-white/[0.03] p-4 backdrop-blur-md transition-all hover:border-white/20">
           <div className="flex items-center justify-between text-xs text-neutral-400">
             <span>累積 Gas 磨損</span>
             <Flame className="h-3.5 w-3.5 text-amber-500" />
           </div>
-          <div className="mt-2 font-mono text-xl font-bold tracking-tight text-amber-400">
+          <div className="mt-1.5 sm:mt-2 font-mono text-lg sm:text-xl font-bold tracking-tight text-amber-400">
             ${totalGasUsd.toFixed(2)}
           </div>
-          <div className="mt-1 flex items-center gap-1 font-mono text-[11px] text-neutral-400">
+          <div className="mt-1 flex items-center gap-1 font-mono text-[10px] sm:text-[11px] text-neutral-400">
             <span>佔總資金 {((totalGasUsd / state.start_equity) * 100).toFixed(1)}%</span>
           </div>
         </div>
 
         {/* Card 5: Max Drawdown */}
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-md transition-all hover:border-white/20">
+        <div className="rounded-none border border-white/10 bg-white/[0.03] p-3 sm:p-4 backdrop-blur-md transition-all hover:border-white/20">
           <div className="flex items-center justify-between text-xs text-neutral-400">
             <span>最大歷史回撤</span>
             <AlertTriangle className="h-3.5 w-3.5 text-rose-500" />
           </div>
-          <div className="mt-2 font-mono text-xl font-bold tracking-tight text-rose-400">
+          <div className="mt-1.5 sm:mt-2 font-mono text-lg sm:text-xl font-bold tracking-tight text-rose-400">
             -{maxDrawdown.toFixed(1)}%
           </div>
-          <div className="mt-1 flex items-center gap-1 font-mono text-[11px] text-neutral-400">
+          <div className="mt-1 flex items-center gap-1 font-mono text-[10px] sm:text-[11px] text-neutral-400">
             <span>風控上限 25.0%</span>
           </div>
         </div>
 
         {/* Card 6: Worst Trade */}
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-md transition-all hover:border-white/20">
+        <div className="rounded-none border border-white/10 bg-white/[0.03] p-3 sm:p-4 backdrop-blur-md transition-all hover:border-white/20">
           <div className="flex items-center justify-between text-xs text-neutral-400">
             <span>最深單筆虧損</span>
             <ShieldCheck className="h-3.5 w-3.5 text-neutral-500" />
           </div>
-          <div className="mt-2 font-mono text-xl font-bold tracking-tight text-rose-400">
+          <div className="mt-1.5 sm:mt-2 font-mono text-lg sm:text-xl font-bold tracking-tight text-rose-400">
             {worstTrade ? `${worstTrade.pnl_pct.toFixed(1)}%` : '無'}
           </div>
-          <div className="mt-1 flex items-center gap-1 font-mono text-[11px] text-neutral-400">
+          <div className="mt-1 flex items-center gap-1 font-mono text-[10px] sm:text-[11px] text-neutral-400">
             <span>{worstTrade ? `$${worstTrade.symbol}` : '--'}</span>
           </div>
         </div>
       </div>
 
       {/* Hero Asset Drawdown SVG Curve Card with Simulated Trailing Stop Overlay */}
-      <div className="rounded-none border border-white/10 bg-white/[0.03] p-6 backdrop-blur-md shadow-2xl">
+      <div className="rounded-none border border-white/10 bg-white/[0.03] p-4 sm:p-6 backdrop-blur-md shadow-2xl">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
           <div>
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <span>資產淨值走勢與回測分叉軌跡 (Equity vs Trailing Stop Curve)</span>
-              <span className="rounded-none bg-white/5 border border-white/10 px-2 py-0.5 text-[10px] font-mono text-neutral-400">
+            <h2 className="text-sm sm:text-base font-bold text-white flex flex-wrap items-center gap-2">
+              <span>資產淨值走勢與回測分叉軌跡</span>
+              <span className="rounded-none bg-white/5 border border-white/10 px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] font-mono text-neutral-400">
                 逐筆平倉結算
               </span>
             </h2>
-            <p className="text-xs text-neutral-400 mt-0.5">
+            <p className="text-[11px] sm:text-xs text-neutral-400 mt-0.5">
               對比原版未停利實況 vs 「若啟動動態移動停利 (+30% 啟動 / 65% 保底)」的利潤挽救軌跡
             </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
             {/* Toggle Overlay Button */}
             <button
               onClick={() => setShowSimulatedTrailing(!showSimulatedTrailing)}
-              className={`flex items-center gap-1.5 rounded-none border px-3 py-1.5 font-mono text-xs transition-all ${
+              className={`flex items-center justify-center gap-1.5 rounded-none border px-2.5 sm:px-3 py-1.5 font-mono text-xs transition-all w-full sm:w-auto ${
                 showSimulatedTrailing
                   ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
                   : 'border-white/10 bg-white/5 text-neutral-400 hover:text-white'
@@ -436,19 +436,19 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
           </div>
         </div>
 
-        {/* Dedicated Fixed-Height Info Banner: Locked at h-9 to prevent any layout shift/jitter */}
-        <div className="mt-3 flex h-9 items-center justify-between rounded-none border border-white/10 bg-black/40 px-3.5 font-mono text-xs overflow-hidden">
-          <div className="flex items-center gap-2 truncate">
+        {/* Dedicated Responsive Info Banner */}
+        <div className="mt-3 flex min-h-[2.25rem] py-1.5 items-center justify-between rounded-none border border-white/10 bg-black/40 px-3 font-mono text-xs">
+          <div className="flex items-center gap-2 flex-wrap">
             {hoveredPoint ? (
-              <div className="flex items-center gap-2.5 text-xs truncate">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2.5 text-[11px] sm:text-xs">
                 <span className="text-neutral-400">
                   標的: <strong className="text-white">${hoveredPoint.trade_symbol}</strong>
                 </span>
-                <span className="text-neutral-600">|</span>
+                <span className="text-neutral-600 hidden xs:inline">|</span>
                 <span className="text-neutral-400">
-                  實盤淨值: <strong className="text-white">${hoveredPoint.equity.toFixed(2)}</strong>
+                  淨值: <strong className="text-white">${hoveredPoint.equity.toFixed(2)}</strong>
                 </span>
-                <span className="text-neutral-600">|</span>
+                <span className="text-neutral-600 hidden xs:inline">|</span>
                 <span className="text-neutral-400">
                   損益:{' '}
                   <strong className={hoveredPoint.trade_pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
@@ -457,7 +457,7 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
                 </span>
                 {showSimulatedTrailing && hoveredPoint.simulated_equity && (
                   <>
-                    <span className="text-neutral-600">|</span>
+                    <span className="text-neutral-600 hidden sm:inline">|</span>
                     <span className="text-emerald-400">
                       動態停利後: <strong className="text-emerald-300">${hoveredPoint.simulated_equity.toFixed(2)}</strong>
                       <span className="ml-1 text-[10px] text-emerald-400">
@@ -468,9 +468,9 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
                 )}
               </div>
             ) : (
-              <span className="text-neutral-500 flex items-center gap-1.5">
-                <Activity className="h-3.5 w-3.5 text-neutral-500" />
-                滑鼠指向圖表節點即可查看各筆平倉實況與動態停利利潤挽救明細
+              <span className="text-neutral-500 flex items-center gap-1.5 text-[11px] sm:text-xs">
+                <Activity className="h-3.5 w-3.5 text-neutral-500 shrink-0" />
+                點選或觸控圖表節點即可查看各筆平倉實況與動態停利利潤挽救明細
               </span>
             )}
           </div>
@@ -482,10 +482,10 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
         </div>
 
         {/* SVG Curve Canvas */}
-        <div className="mt-4 w-full overflow-x-auto">
+        <div className="mt-4 w-full overflow-hidden">
           <svg 
             viewBox={`0 0 ${chartWidth} ${chartHeight}`} 
-            className="w-full h-auto overflow-visible select-none"
+            className="w-full h-auto overflow-visible select-none touch-manipulation"
             onMouseLeave={() => setHoveredPoint(null)}
           >
             <defs>
@@ -616,6 +616,8 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
                 <g 
                   key={i}
                   onMouseEnter={() => setHoveredPoint(pt)}
+                  onClick={() => setHoveredPoint(pt)}
+                  onTouchStart={() => setHoveredPoint(pt)}
                   className="cursor-pointer"
                 >
                   {/* Invisible wide hit column - prevents mouse leave flicker */}
@@ -854,7 +856,7 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
                   {renderSparkline(pos)}
 
                   {/* Position Details Row */}
-                  <div className="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-black/40 p-2.5 font-mono text-xs">
+                  <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2 rounded-none bg-black/40 p-2.5 font-mono text-xs">
                     <div>
                       <span className="text-neutral-500">開倉金額: </span>
                       <span className="text-neutral-200">

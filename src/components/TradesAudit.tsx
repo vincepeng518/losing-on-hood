@@ -86,9 +86,9 @@ export const TradesAudit: React.FC<TradesAuditProps> = ({ trades, initialFilter 
           />
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           {/* Filter Pills */}
-          <div className="flex items-center gap-1 rounded-2xl bg-black/40 p-1 border border-white/10 text-xs">
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar rounded-none bg-black/40 p-1 border border-white/10 text-xs w-full sm:w-auto touch-pan-x">
             {[
               { id: 'all', label: '全部交易' },
               { id: 'meeting', label: '5-Agent 決策' },
@@ -99,7 +99,7 @@ export const TradesAudit: React.FC<TradesAuditProps> = ({ trades, initialFilter 
               <button
                 key={f.id}
                 onClick={() => setActiveFilter(f.id)}
-                className={`rounded-xl px-2.5 py-1 font-mono transition-all ${
+                className={`shrink-0 whitespace-nowrap rounded-none px-2.5 sm:px-3 py-1 font-mono transition-all min-h-[32px] ${
                   activeFilter === f.id
                     ? 'bg-rose-500/20 text-rose-300 font-bold border border-rose-500/30'
                     : 'text-neutral-400 hover:text-white'
@@ -111,10 +111,10 @@ export const TradesAudit: React.FC<TradesAuditProps> = ({ trades, initialFilter 
           </div>
 
           {/* Toggle buttons */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto justify-end">
             <button
               onClick={() => setShowRawSignals(!showRawSignals)}
-              className={`flex items-center gap-1 rounded-xl px-2.5 py-1 font-mono text-xs border transition-all ${
+              className={`flex items-center gap-1 rounded-none px-2.5 py-1 font-mono text-xs border transition-all min-h-[32px] ${
                 showRawSignals
                   ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
                   : 'bg-white/5 text-neutral-400 border-white/10 hover:text-white'
@@ -126,13 +126,13 @@ export const TradesAudit: React.FC<TradesAuditProps> = ({ trades, initialFilter 
 
             <button
               onClick={expandAll}
-              className="rounded-xl border border-white/10 bg-white/5 px-2.5 py-1 font-mono text-xs text-neutral-400 hover:text-white transition-colors"
+              className="rounded-none border border-white/10 bg-white/5 px-2.5 py-1 font-mono text-xs text-neutral-400 hover:text-white transition-colors min-h-[32px]"
             >
               展開全部
             </button>
             <button
               onClick={collapseAll}
-              className="rounded-xl border border-white/10 bg-white/5 px-2.5 py-1 font-mono text-xs text-neutral-400 hover:text-white transition-colors"
+              className="rounded-none border border-white/10 bg-white/5 px-2.5 py-1 font-mono text-xs text-neutral-400 hover:text-white transition-colors min-h-[32px]"
             >
               收合全部
             </button>

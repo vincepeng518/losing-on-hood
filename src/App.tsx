@@ -235,24 +235,24 @@ export const App: React.FC = () => {
       />
 
       {/* Main Content Workspace */}
-      <main className="relative z-10 mx-auto max-w-7xl px-4 py-6">
+      <main className="relative z-10 mx-auto max-w-7xl px-3 sm:px-4 py-3 sm:py-6">
         {/* Threat Warning Banner with zero-border Linear styling */}
-        <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-none border border-white/10 bg-neutral-900/60 px-4 py-2 font-mono text-xs text-neutral-400">
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-none border border-white/10 bg-neutral-900/60 px-3 sm:px-4 py-2 font-mono text-xs text-neutral-400">
           <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-none bg-rose-500 animate-ping" />
-            <span className="text-neutral-200">5-Agent 交易室威脅防護網：即時監聽惡意蜜罐合約與鯨魚異動</span>
+            <span className="h-2 w-2 shrink-0 rounded-none bg-rose-500 animate-ping" />
+            <span className="text-neutral-200 text-[11px] sm:text-xs">5-Agent 交易室威脅防護網：即時監聽惡意蜜罐合約與鯨魚異動</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2">
             {isFallbackMode && (
-              <span className="text-amber-400 text-[11px]">
+              <span className="text-amber-400 text-[10px] sm:text-[11px]">
                 ⚠️ API 離線中，使用視覺 Fallback
               </span>
             )}
             <button
               onClick={handleSimulateDangerAlert}
-              className="rounded-none border border-rose-500/40 bg-rose-950/40 px-3 py-1 text-rose-300 hover:bg-rose-900/60 hover:text-white transition-colors"
+              className="rounded-none border border-rose-500/40 bg-rose-950/40 px-2.5 sm:px-3 py-1 text-[11px] sm:text-xs text-rose-300 hover:bg-rose-900/60 hover:text-white transition-colors"
             >
-              + 觸發高危蜜罐/鯨魚警報 (測試鈴鐺通知)
+              + 測試警報通知
             </button>
           </div>
         </div>
