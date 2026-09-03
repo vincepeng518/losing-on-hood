@@ -556,6 +556,16 @@ def tick():
                 {"order_type": "loss_stop", "side": "sell", "price_scale": "40", "sell_ratio": "100"},
             ]
             sym = t.get("symbol", "?")
+            # 新生幣(<5min)動能檢查無 K 可查 → 需 smb>=3 (BINKER/LULU 出生即買全爆 -76%/-37%;
+            # GRASS 型 smb=7 過。smb = 近30分 smart 買入次數, 出生<5min 的幣 smart 尚未進 = 天然低)
+            created = t.get("creation_timestamp") or 0
+            age_min = (time.time() - created) / 60 if created else 999
+            if age_min < 5:
+                smb_now = smart_buy_addrs().get(addr.lower(), 0)
+                if smb_now < 3:
+                    print(f"SKIP {sym}: 新生幣({age_min:.1f}min) 無K線可檢 + smb={smb_now}<3 (BINKER/LULU 教訓)")
+                    s["seen"][addr] = time.time()
+                    continue
             # 進場前最後確認: 1m kline 當下動能（復盤: 接刀組全爆, PARKER/HORSE/INCGPRO）
             ks_now = klines_res(t["address"], "1m")
             recent = ks_now[-5:] if ks_now else []
