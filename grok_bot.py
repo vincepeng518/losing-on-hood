@@ -23,7 +23,7 @@ LOG = "/root/rh_live/trades.csv"
 LOCK = "/root/rh_live/bot.lock"
 REVIEW_FILE = "/root/rh_live/review_history.json"
 CHAIN = "robinhood"
-WALLET = "0xYOUR_WALLET_ADDRESS"
+WALLET = "0x4d4e93fc85133b372ea6d360e0ba57293f6ea801"
 NATIVE = "0x0000000000000000000000000000000000000000"
 START_EQUITY = 5.07
 PER_TRADE = 5.0
@@ -531,12 +531,19 @@ class Judge:
         else:
             b1 = s1 = b5 = s5 = 0
         held_min = (time.time() - p["opened_ts"]) / 60
-        # fast dump
+        # fast dump（2026-09-03 修：peak≥30% 且當下未破保底時豁免——先讓 giveback 鎖利）
+        # 22 筆 fast dump 平均 peak +73.5%，舊版直接砍在最低點，giveback 鎖利沒機會跑。
+        # 逐 K 重測：豁免後 7 筆真救回（STRATTON -17.7%→+80% 等），9 筆同根K穿線救不了。
         ks_x = klines_res(addr, "1m")
         if len(ks_x) >= 4:
             cl_x = [float(b["close"]) for b in ks_x[-4:]]
             if cl_x[-1] < cl_x[0] * 0.93 and peak >= 0.10:
-                return True, f"fast dump {((cl_x[-1]/cl_x[0])-1)*100:+.1f}% (peak +{peak*100:.0f}%)", peak, chg
+                floor_pct = peak * (0.7 if peak > 3.0 else (0.6 if peak > 1.0 else 0.5)) * 100
+                now_pct = (cl_x[-1] / p["entry_price"] - 1) * 100 if p.get("entry_price") else -999
+                if peak >= 0.30 and now_pct > floor_pct:
+                    pass  # 在保底之上：不出，交給下方 giveback 鎖利
+                else:
+                    return True, f"fast dump {((cl_x[-1]/cl_x[0])-1)*100:+.1f}% (peak +{peak*100:.0f}%)", peak, chg
         # flow collapse
         if info:
             if (b1 + s1 >= 8 and s1 > b1 * 2) or (b5 + s5 >= 10 and s5 > b5 * 1.8):

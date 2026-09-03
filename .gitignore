@@ -10,3 +10,5 @@ trades.csv
 *.png
 __pycache__/
 .env
+# paper 資料白名單（2026-09-03 用戶指定公開歷史交易資料）
+!paper_data/**
