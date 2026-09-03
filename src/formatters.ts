@@ -32,7 +32,7 @@ const ZH_RULES: [RegExp, string][] = [
   [/^fast dump (.*%) \(peak \+(.*)%\)/i, '短線急殺 $1（峰值 +$2%）'],
   [/^flow collapse s1=(\d+)\/b1=(\d+) s5=(\d+)\/b5=(\d+) (.*)/i, '買盤崩落：1m 賣$1/買$2、5m 賣$3/買$4，變化 $5'],
   [/^downtrend (.*%) (\d+)min/i, '下行陰跌 $1，已持倉 $2 分鐘'],
-  [/^giveback \(peak \+(.*)%, now (.*)%\)/i, '利潤回吐過深（峰值 +$1%，現 $2%）'],
+  [/^giveback \(peak \+(.*)%, now (.*)%\)/i, '浮盈回撤出場（峰值 +$1%，現 $2%）'],
   [/^stale 12h (.*)/i, '持倉逾 12 小時無動靜 $1'],
   [/^no momentum 45min \((.*)\)/i, '45 分鐘毫無買量突破（$1）'],
   [/^disaster (.*)/i, '閃崩重挫 $1'],
@@ -145,8 +145,8 @@ export function getExitDiagnosis(reason: string, method?: string): { tag: string
       : 'trail lock 65% 保底被穿，反轉速度快於 1 分鐘檢查間隔';
     return { tag: '虧損出場（鎖利保底失守）', color: 'text-red-400 border-red-500/30 bg-red-950/40', desc: sub };
   }
-  if (text.includes('giveback') || text.includes('獲利回吐')) {
-    return { tag: '獲利回吐（浮盈收縮）', color: 'text-amber-400 border-amber-500/30 bg-amber-950/40', desc: '平倉時仍有浮盈，利潤自高點收縮落袋' };
+  if (text.includes('giveback') || text.includes('獲利回吐') || text.includes('浮盈回撤出場')) {
+    return { tag: '浮盈回撤出場', color: 'text-amber-400 border-amber-500/30 bg-amber-950/40', desc: '觸發保底線平倉落袋，收下自高點收縮後的浮盈' };
   }
   if (text.includes('downtrend') || text.includes('下行') || text.includes('陰跌')) {
     return { tag: '陰跌下行', color: 'text-orange-400 border-orange-500/30 bg-orange-950/40', desc: '長時間缺乏買盤推進，趨勢轉空' };
