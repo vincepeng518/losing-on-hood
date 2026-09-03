@@ -596,11 +596,6 @@ export const AgentCouncil: React.FC<AgentCouncilProps> = ({
           totalItems={filteredLogs.length}
           pageSize={pageSize}
           onPageChange={setCurrentPage}
-          pageSizeOptions={[25, 50, 100]}
-          onPageSizeChange={(newSize) => {
-            setPageSize(newSize);
-            setCurrentPage(1);
-          }}
           itemLabel="筆審議歷史紀錄"
           accentColor="indigo"
         />

@@ -370,11 +370,6 @@ export const TradesAudit: React.FC<TradesAuditProps> = ({ trades, initialFilter 
           totalItems={filteredTrades.length}
           pageSize={pageSize}
           onPageChange={setCurrentPage}
-          pageSizeOptions={[25, 50, 100]}
-          onPageSizeChange={(newSize) => {
-            setPageSize(newSize);
-            setCurrentPage(1);
-          }}
           itemLabel="筆歷史平倉紀錄"
           accentColor="rose"
         />

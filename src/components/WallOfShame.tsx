@@ -174,11 +174,6 @@ export const WallOfShame: React.FC<WallOfShameProps> = ({ trades, onGoToSimulato
           totalItems={shameCandidates.length}
           pageSize={pageSize}
           onPageChange={setCurrentPage}
-          pageSizeOptions={[10, 25, 50]}
-          onPageSizeChange={(newSize) => {
-            setPageSize(newSize);
-            setCurrentPage(1);
-          }}
           itemLabel="筆恥辱榜紀錄"
           accentColor="red"
         />
