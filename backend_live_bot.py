@@ -520,6 +520,13 @@ def tick():
     # ---- entries ----
     gas = gas_eth() or 0
     available = gas - MIN_GAS_ETH
+    # 2026-09-04 熔斷（用戶令）: 新開倉累計淨虧 >= $30 → 強制停止開新倉（出場管理照跑）
+    if not s.get("kill_base_ts"):
+        s["kill_base_ts"] = time.time()  # 熔斷基準點: 部署當下起算「新開倉」
+    kill_loss = sum((c.get("pnl_usd") or 0) for c in s["closed"] if (c.get("_buy_ts") or 0) >= s["kill_base_ts"])
+    if kill_loss <= -30:
+        print(f"[KILL SWITCH] 新開倉累計虧損 {kill_loss:.2f} <= -$30 — 強制停止開倉 (出場管理照常)")
+        available = 0  # 封鎖開倉; exits 已跑完, snapshot 照走
     if available > 0 and len(s["positions"]) < MAX_OPEN:
         # 多時間級別掃描: 1m(出生脈衝)15 + 5m(即時熱度)30 + 1h(主升段)20 + 6h(中期趨勢)10
         toks = fetch_trending()
