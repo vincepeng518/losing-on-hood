@@ -30,11 +30,13 @@ class PaperLock:
 
 
 # ---- decision snapshot hooks (log-only; lazy import, never raises) ----
-def _save_snap(addr, sym, meeting, s):
+def _save_snap(addr, sym, meeting, s, extra=None):
     try:
         from snapshot_store import save_decision
         features = {"meeting": meeting, "cash_usd": s.get("cash_usd"),
                     "n_positions": len(s.get("positions", {}))}
+        if extra:
+            features.update(extra)
         return save_decision('paper', addr, sym, 'entry_meeting', features)
     except Exception as _e:
         print(f"[paper_bot] snapshot save fail: {_e}")
@@ -268,7 +270,8 @@ def paper_tick():
         total = c["score"] + narr_score + sniper_score + judge_score
         add_event(s, "agent", f"VOTE {sym}: scanner={c['score']} narrative={narr_score} sniper={sniper_score} judge={judge_score} TOTAL={total}")
         # decision snapshot: entry meeting (含 veto/未達標者)
-        _snap_id = _save_snap(addr, sym, meeting, s)
+        _snap_extra = {"score": total, "snap": c.get("snap") or {}, "alloc_usd": alloc_est}
+        _snap_id = _save_snap(addr, sym, meeting, s, extra=_snap_extra)
         # meeting 已增量建好（含 veto 也有記錄），total 不足則不開倉
         if total < th["min_total_score"]:
             seen[addr] = time.time(); continue
@@ -347,5 +350,5 @@ def paper_tick():
     }))
 
 if __name__ == "__main__":
-    with PaperLock:
+    with PaperLock():
         paper_tick()

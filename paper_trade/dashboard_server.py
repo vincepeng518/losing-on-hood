@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """dashboard_server.py — serves dashboard.html with SSR + /api/state + /api/live."""
-import http.server, json, os, re
+import http.server, json, os, re, threading, time
 
 PORT = 8321
 DASHBOARD = "/root/rh_live/paper_trade/dashboard.html"
@@ -334,6 +334,40 @@ def inject_ssr(html, paper, live):
 
     return html
 
+# ---------------------------------------------------------------------------
+# On-chain balance cache: gm CLI + eth_price 每次要 0.7s，polling 5s 會打爆
+# 30s TTL，單 flight（併發請求共用一次抓取結果）
+# ---------------------------------------------------------------------------
+_onchain_lock = threading.Lock()
+_onchain_cache = {"usd": None, "ts": 0.0}
+
+def get_onchain_usd():
+    now = time.time()
+    if _onchain_cache["usd"] is not None and now - _onchain_cache["ts"] < 30:
+        return _onchain_cache["usd"]
+    with _onchain_lock:
+        # double-check: 拿到鎖時可能已被別的 thread 更新
+        if _onchain_cache["usd"] is not None and time.time() - _onchain_cache["ts"] < 30:
+            return _onchain_cache["usd"]
+        try:
+            import sys
+            sys.path.insert(0, "/root/rh_live")
+            from grok_bot import gm, NATIVE, WALLET, CHAIN, eth_price
+            d = gm("portfolio","token-balance","--chain",CHAIN,"--wallet",WALLET,"--token",NATIVE)
+            eth = float(d["balances"][0]["balance"])
+            val = round(eth * eth_price(), 2)
+            _onchain_cache["usd"] = val
+            _onchain_cache["ts"] = time.time()
+            return val
+        except Exception:
+            return _onchain_cache["usd"] if _onchain_cache["usd"] is not None else None
+
+def _live_state_cached():
+    s = load_json(LIVE_STATE)
+    v = get_onchain_usd()
+    s["_onchain_usd"] = v if v is not None else s.get("equity_usd", 0)
+    return s
+
 class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -345,34 +379,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
         elif self.path == "/api/live":
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.end_headers()
-            s = load_json(LIVE_STATE)
-            try:
-                import sys
-                sys.path.insert(0, "/root/rh_live")
-                from grok_bot import gm, NATIVE, WALLET, CHAIN, eth_price
-                d = gm("portfolio","token-balance","--chain",CHAIN,"--wallet",WALLET,"--token",NATIVE)
-                eth = float(d["balances"][0]["balance"])
-                s["_onchain_eth"] = eth
-                s["_onchain_usd"] = round(eth * eth_price(), 2)
-            except:
-                s["_onchain_usd"] = s.get("equity_usd", 0)
+            s = _live_state_cached()
             self.wfile.write(json.dumps(s, default=str).encode())
         elif self.path == "/" or self.path == "/index.html":
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
             html = open(DASHBOARD, "rb").read().decode()
             paper = load_json(PAPER_STATE)
-            live = load_json(LIVE_STATE)
-            live["_onchain_usd"] = live.get("equity_usd", 0)
-            try:
-                import sys
-                sys.path.insert(0, "/root/rh_live")
-                from grok_bot import gm, NATIVE, WALLET, CHAIN, eth_price
-                d = gm("portfolio","token-balance","--chain",CHAIN,"--wallet",WALLET,"--token",NATIVE)
-                eth = float(d["balances"][0]["balance"])
-                live["_onchain_usd"] = round(eth * eth_price(), 2)
-            except:
-                pass
+            live = _live_state_cached()
             html = inject_ssr(html, paper, live)
             self.wfile.write(html.encode())
         else:
@@ -381,6 +395,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         pass
 
-server = http.server.HTTPServer(("0.0.0.0", PORT), Handler)
-print(f"dashboard on http://0.0.0.0:{PORT}")
+server = http.server.ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
+print(f"dashboard on http://0.0.0.0:{PORT} (threaded, onchain cache 30s)")
 server.serve_forever()
