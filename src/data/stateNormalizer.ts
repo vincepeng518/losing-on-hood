@@ -27,14 +27,17 @@ export function normalizeAccountState(
   if (raw.positions && typeof raw.positions === 'object') {
     for (const [key, p] of Object.entries(raw.positions as Record<string, any>)) {
       if (p && typeof p === 'object') {
-        const alloc_usd = Number(p.alloc_usd) || 8.0;
+        const alloc_usd = p.alloc_usd != null && !isNaN(Number(p.alloc_usd))
+          ? Number(p.alloc_usd)
+          : undefined;
         const entry_price = Number(p.entry_price) || 0;
         const current_price = Number(p.current_price) || entry_price;
         const held_min = Number(p.held_min) || 0;
         const peak = Number(p.peak) || 0;
         const current_pnl_pct = Number(p.current_pnl_pct) || 
           (entry_price > 0 ? ((current_price - entry_price) / entry_price) * 100 : 0);
-        const current_pnl_usd = Number(p.current_pnl_usd) || (alloc_usd * current_pnl_pct) / 100;
+        const current_pnl_usd = Number(p.current_pnl_usd) || 
+          (alloc_usd != null ? (alloc_usd * current_pnl_pct) / 100 : 0);
         const slip_pct = Number(p.slip_pct ?? p.slippage_pct) || 0;
         const gas_usd = Number(p.gas_usd) || 0;
 
@@ -79,10 +82,14 @@ export function normalizeAccountState(
             }))
           : [];
 
-        const alloc_usd = Number(c.alloc_usd) || 8.0;
+        const alloc_usd = c.alloc_usd != null && !isNaN(Number(c.alloc_usd))
+          ? Number(c.alloc_usd)
+          : undefined;
         const pnl_usd = Number(c.pnl_usd) || 0;
         const peak = Number(c.peak) || 0;
-        const peakUsd = (alloc_usd * peak) / 100;
+        const peakUsd = alloc_usd != null 
+          ? (alloc_usd * peak) / 100 
+          : (c.pnl_pct && pnl_usd ? Math.abs((pnl_usd / c.pnl_pct) * peak) : 0);
         const evaporated_usd = Math.max(0, peakUsd - pnl_usd);
 
         closed.push({

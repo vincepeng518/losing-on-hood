@@ -857,7 +857,11 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
                   <div className="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-black/40 p-2.5 font-mono text-xs">
                     <div>
                       <span className="text-neutral-500">開倉金額: </span>
-                      <span className="text-neutral-200">${pos.alloc_usd.toFixed(2)}</span>
+                      <span className="text-neutral-200">
+                        {pos.alloc_usd != null && !isNaN(pos.alloc_usd)
+                          ? `$${pos.alloc_usd.toFixed(2)}`
+                          : '—'}
+                      </span>
                     </div>
                     <div>
                       <span className="text-neutral-500">進場價: </span>

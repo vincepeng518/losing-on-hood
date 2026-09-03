@@ -16,7 +16,7 @@ export interface AgentMeetingItem {
 export interface ClosedTrade {
   symbol: string;
   time: string;
-  alloc_usd: number;
+  alloc_usd?: number;
   entry_price: number;
   exit_price: number;
   pnl_usd: number;
@@ -39,7 +39,7 @@ export interface ClosedTrade {
 
 export interface ActivePosition {
   symbol: string;
-  alloc_usd: number;
+  alloc_usd?: number;
   entry_price: number;
   current_price: number;
   held_min: number;

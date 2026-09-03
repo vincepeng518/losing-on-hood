@@ -14,7 +14,7 @@ export const WallOfShame: React.FC<WallOfShameProps> = ({ trades, onGoToSimulato
     .filter((t) => (t.peak || 0) >= 30)
     .map((t) => {
       const peak = t.peak || 0;
-      const alloc = t.alloc_usd || 8;
+      const alloc = t.alloc_usd ?? (t.pnl_pct && t.pnl_usd ? Math.abs((t.pnl_usd / t.pnl_pct) * 100) : 0);
       const peakUsd = (alloc * peak) / 100;
       const realizedUsd = t.pnl_usd || 0;
       const evaporatedUsd = Math.max(0, peakUsd - realizedUsd);

@@ -90,7 +90,8 @@ export function formatPrice(price: number): string {
   return `$${price.toFixed(8)}`;
 }
 
-export function formatEth(eth: number): string {
+export function formatEth(eth?: number | null): string {
+  if (eth == null || isNaN(eth)) return '—';
   return `${eth.toFixed(5)} ETH`;
 }
 

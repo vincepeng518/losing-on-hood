@@ -3,7 +3,7 @@ import { ClosedTrade, EquityPoint, ExitReasonBreakdownItem, AgentCouncilLogItem,
 export function enrichClosedTrades(trades: ClosedTrade[]): ClosedTrade[] {
   return trades.map((t) => {
     // If trade had a peak gain (e.g. peak = 85%), estimate peak USD profit
-    const alloc = t.alloc_usd || 8;
+    const alloc = t.alloc_usd ?? (t.pnl_pct && t.pnl_usd ? Math.abs((t.pnl_usd / t.pnl_pct) * 100) : 0);
     const peakPct = t.peak || 0;
     const peakUsd = (alloc * peakPct) / 100;
     const realizedUsd = t.pnl_usd || 0;
@@ -56,7 +56,7 @@ export function buildEquityCurve(
 
     // Calculate simulated trailing take-profit
     let simPnl = origPnl;
-    const alloc = t.alloc_usd || 8;
+    const alloc = t.alloc_usd ?? (t.pnl_pct && t.pnl_usd ? Math.abs((t.pnl_usd / t.pnl_pct) * 100) : 0);
     const peak = t.peak || 0;
     if (peak >= simTrailingTrigger) {
       const potentialLockedUsd = (alloc * peak * (simTrailingLock / 100)) / 100;
@@ -268,7 +268,7 @@ export function simulateTrailingStop(
   for (const t of trades) {
     const orig = t.pnl_usd;
     origTotal += orig;
-    const alloc = t.alloc_usd || 8;
+    const alloc = t.alloc_usd ?? (t.pnl_pct && t.pnl_usd ? Math.abs((t.pnl_usd / t.pnl_pct) * 100) : 0);
     const peak = t.peak || 0;
 
     let simTradePnl = orig;

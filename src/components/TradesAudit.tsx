@@ -243,7 +243,11 @@ export const TradesAudit: React.FC<TradesAuditProps> = ({ trades, initialFilter 
                       <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 font-mono text-xs">
                         <div className="rounded-xl bg-white/[0.03] p-2.5 border border-white/5">
                           <span className="text-neutral-500 block text-[10px]">開倉金額</span>
-                          <span className="font-semibold text-white">${t.alloc_usd.toFixed(2)}</span>
+                          <span className="font-semibold text-white">
+                            {t.alloc_usd != null && !isNaN(t.alloc_usd)
+                              ? `$${t.alloc_usd.toFixed(2)}`
+                              : '—'}
+                          </span>
                         </div>
                         <div className="rounded-xl bg-white/[0.03] p-2.5 border border-white/5">
                           <span className="text-neutral-500 block text-[10px]">進場價格 (USD / ETH)</span>
