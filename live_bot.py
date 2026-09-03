@@ -113,6 +113,7 @@ def kline_chg(p, addr):
         entry_px = float(before[-1]["close"])
         p["entry_kline_px"] = entry_px
     after = [k for k in ks if k["time"]//1000 >= entry_ts - 60]
+    if not after: return 0.0, 0.0  # K 線 API 偶發回空（新幣/限流）——不出場判斷, 下輪重查
     now_px = float(after[-1]["close"])
     peak_px = max(float(k["high"]) for k in after)
     chg = (now_px - entry_px) / entry_px
