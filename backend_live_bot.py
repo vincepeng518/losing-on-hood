@@ -65,9 +65,19 @@ def eth_price():
 _EP_CACHE = None
 _EP_CACHE = eth_price() or 2400.0
 
+_INFO_CACHE = {}
 def token_info(addr):
-    try: return gm("token", "info", "--chain", CHAIN, "--address", addr)
-    except Exception: return None
+    hit = _INFO_CACHE.get(addr)
+    if hit and time.time() - hit[0] < 600:  # 10 分 TTL — 掃描池擴大後防爆量
+        return hit[1]
+    try:
+        d = gm("token", "info", "--chain", CHAIN, "--address", addr)
+        _INFO_CACHE[addr] = (time.time(), d)
+        if len(_INFO_CACHE) > 500:  # 防爆檔: 砍最舊一半
+            for k in list(_INFO_CACHE)[:250]: _INFO_CACHE.pop(k, None)
+        return d
+    except Exception:
+        return None
 
 def token_balance_raw(addr):
     try:
@@ -495,7 +505,15 @@ def tick():
     gas = gas_eth() or 0
     available = gas - MIN_GAS_ETH
     if available > 0 and len(s["positions"]) < MAX_OPEN:
+        # 多時間級別掃描: 1m(出生脈衝)15 + 5m(即時熱度)30 + 1h(主升段)20 + 6h(中期趨勢)10
         toks = fetch_trending()
+        have = {t.get("address") for t in toks}
+        for iv, n in (("1m", 15), ("1h", 20), ("6h", 10)):
+            try:
+                extra = fetch_trending(iv)
+                toks += [t for t in extra[:n] if t.get("address") not in have and not have.add(t.get("address"))]
+            except Exception:
+                pass  # 單級別失敗不阻掃描
         # gas 節流: 只擋開倉不擋掃描（agent_log 要累積樣本）；開倉限 30 分/筆
         open_ts = [p.get("opened_ts") or 0 for p in s["positions"].values()]
         last_buy_ts = max(open_ts) if open_ts else (s["closed"][-1].get("_buy_ts", 0) if s["closed"] else 0)
@@ -540,10 +558,15 @@ def tick():
                 closes = [float(b["close"]) for b in recent]
                 drop5 = closes[-1]/closes[0] - 1
                 red = sum(1 for i in range(1,len(closes)) if closes[i] < closes[i-1])
-                if drop5 < -0.06 or (len(recent) >= 4 and red >= 4):
-                    print(f"SKIP {sym}: 進場當下動能壞 (5m {drop5*100:+.1f}%, 紅K {red}/4)")
-                if drop5 > 0.50:  # 追高防護 (MARI 教訓: 進場後 9 分鐘 +142%→-87.7%, 追暴拉位=接崩盤刀)
-                    print(f"SKIP {sym}: 追高防護 (5m +{drop5*100:.0f}% 已暴拉, 進場=接崩盤前刀)")
+                red_skip = (drop5 < -0.06 or (len(recent) >= 4 and red >= 4))
+                pump_skip = drop5 > 0.50  # 追高防護 (MARI 教訓: 進場後 9 分鐘 +142%→-87.7%, 追暴拉位=接崩盤刀)
+                if red_skip or pump_skip:
+                    if pump_skip and not red_skip:
+                        print(f"SKIP {sym}: 追高防護 (5m +{drop5*100:.0f}% 已暴拉, 進場=接崩盤前刀)")
+                    elif red_skip:
+                        print(f"SKIP {sym}: 進場當下動能壞 (5m {drop5*100:+.1f}%, 紅K {red}/4)")
+                    s["seen"][addr] = time.time()
+                    continue
                 # 高位幣需 smart 錢包當下仍在買 (今日實證: 前1h>100% 的 31 幣中位仍 +52% 但分化大,
                 # MARI smb=0 進場死 -81.7%; smb>=2 = 近30分 smart 還在加碼 = 下半場訊號)
                 _t = t  # trending token dict
@@ -559,8 +582,6 @@ def tick():
                         print(f"SKIP {sym}: 高位無 smart 跟隨 (前1h +{pump1h:.0f}%, smb={smb_now})")
                         s["seen"][addr] = time.time()
                         continue
-                    s["seen"][addr] = time.time()
-                    continue
             print(f"BUY {sym} ${alloc_usd:.2f} score={score}")
             ok, rep, oid = swap_and_confirm(NATIVE, t["address"], amount_eth=alloc_eth,
                                             condition_orders=conditions)
@@ -760,8 +781,8 @@ def gas_eth():
     except Exception:
         return 0.0
 
-def fetch_trending():
-    d = gm("market", "trending", "--chain", CHAIN, "--interval", "5m")
+def fetch_trending(interval="5m"):
+    d = gm("market", "trending", "--chain", CHAIN, "--interval", interval, "--limit", "100")
     if d.get("code") != 0: raise RuntimeError(f"trending code={d.get('code')}")
     return d["data"]["rank"]
 
