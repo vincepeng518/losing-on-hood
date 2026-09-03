@@ -538,6 +538,7 @@ def tick():
             sym0 = t.get("symbol", "?")
             s.setdefault("agent_log", []).append({
                 "token": sym0, "ts": time.time(),
+                "address": addr,  # biohacking 教訓: 沒 addr 欄, log 輪替後滅證
                 "agent": "SCANNER",
                 "verdict": "veto" if rej else ("approve" if score >= 5 else "hold"),
                 "score": score,
@@ -604,8 +605,10 @@ def tick():
             ok, rep, oid = swap_and_confirm(NATIVE, t["address"], amount_eth=alloc_eth,
                                             condition_orders=conditions)
             if not ok:
+                # 2026-09-04 修: fail 一次即記 seen（biohacking 教訓: fail<3 下輪再 fail 照樣燒 gas）
+                s["seen"][addr] = time.time()
                 s["seen"][addr+":fail"] = s["seen"].get(addr+":fail", 0) + 1
-                if s["seen"][addr+":fail"] >= 3: s["seen"][addr] = time.time()
+                print(f"  [BUY FAIL] {sym} order={oid} 記 seen, 下輪不再試")
                 continue
             time.sleep(6)
             my_buy = latest_buy(addr)
