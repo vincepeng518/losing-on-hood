@@ -139,8 +139,11 @@ export function getExitDiagnosis(reason: string, method?: string): { tag: string
   if (text.includes('fast dump') || text.includes('急殺')) {
     return { tag: '短線急殺', color: 'text-red-400 border-red-500/30 bg-red-950/40', desc: '極短線跌幅過大引發強制清倉' };
   }
+  if (text.includes('reversal loss') || text.includes('反轉')) {
+    return { tag: '反轉虧損', color: 'text-red-400 border-red-500/30 bg-red-950/40', desc: '衝高後反轉跌破進場價，真實死因是虧損而非獲利回吐' };
+  }
   if (text.includes('giveback') || text.includes('獲利回吐')) {
-    return { tag: '獲利回吐', color: 'text-amber-400 border-amber-500/30 bg-amber-950/40', desc: '衝頂後未在高點落袋，利潤回吐過深' };
+    return { tag: '獲利回吐（浮盈收縮）', color: 'text-amber-400 border-amber-500/30 bg-amber-950/40', desc: '平倉時仍有浮盈，利潤自高點收縮落袋' };
   }
   if (text.includes('downtrend') || text.includes('下行') || text.includes('陰跌')) {
     return { tag: '陰跌下行', color: 'text-orange-400 border-orange-500/30 bg-orange-950/40', desc: '長時間缺乏買盤推進，趨勢轉空' };
