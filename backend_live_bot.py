@@ -109,23 +109,34 @@ def fetch_activities_map(acts):
 
 # ================= 行情: kline 同源計價 (#3) =================
 def kline_chg(p, addr):
-    """漲跌 = kline 現價 / 進場時刻 kline 價 — 同源同單位，單位自動消掉"""
+    """漲跌 = kline 現價 / 進場真實成本 — 2026-09-04 v2 基準重寫。
+    兩個歷史 bug: (a) 固化時抓到「進場當根未收盤 K」的 close, 該值隨後續走勢漂移
+    (DELULU: 進場 6.29e-05 → 固化 3.766e-05, peak/chg 虛高 40pt, trail 被假訊號誤導);
+    (b) bonding curve 幣真實成交價 ≠ token_amount 換算值 (virtual pool 刻度), 不可用。
+    修法: 基準 = entry_info_px (開倉當下 token_info 報價, 與 K 同刻度的真實成本);
+    無則退回「排除進場當根」的前一根已收盤 close。進場當根的 high 不入 peak
+    (可能是進場前的尖峰)。"""
     entry_ts = int(p["opened_ts"])
     held = time.time() - entry_ts
     res = "1m" if held < 7200 else ("15m" if held < 86400 else "1h")
     ks = klines_res(addr, res)
     if not ks: return 0.0, 0.0
-    # 基準價: 進場後第一次查詢時固化, 之後永遠用同一個數（解析度切換不跳變）
     entry_px = p.get("entry_kline_px")
     if not entry_px:
-        before = [k for k in ks if k["time"]//1000 <= entry_ts]
-        if not before: return 0.0, 0.0
-        entry_px = float(before[-1]["close"])
+        if p.get("entry_info_px"):
+            entry_px = float(p["entry_info_px"])
+        else:
+            before = [k for k in ks if k["time"]//1000 < entry_ts//60*60]  # 排除進場當根
+            if not before: return 0.0, 0.0
+            entry_px = float(before[-1]["close"])
         p["entry_kline_px"] = entry_px
-    after = [k for k in ks if k["time"]//1000 >= entry_ts - 60]
+    my_root = entry_ts//60*60
+    after = [k for k in ks if k["time"]//1000 >= my_root]
     if not after: return 0.0, 0.0  # K 線 API 偶發回空（新幣/限流）——不出場判斷, 下輪重查
     now_px = float(after[-1]["close"])
-    peak_px = max(float(k["high"]) for k in after)
+    # peak: 進場當根只用 close（進場前尖峰不算浮盈）, 後續根用 high
+    cands = [float(after[0]["close"])] + [float(k["high"]) for k in after[1:]]
+    peak_px = max(cands)
     chg = (now_px - entry_px) / entry_px
     peak = (peak_px - entry_px) / entry_px
     return chg, max(0.0, peak)
@@ -630,6 +641,11 @@ def tick():
                 "entry_quote_qty": quote_qty,
                 "custody": "escrow",  # 帶條件單開倉 = 幣在託管
                 "conditions": conditions, "peak_chg": 0, "last_chg": 0}
+            # 開倉當下 token_info 報價 = 真實成本基準 (與 K 同刻度, 2026-09-04 修)
+            try:
+                s["positions"][addr]["entry_info_px"] = float((token_info(t["address"]).get("price") or {}).get("price") or 0) or None
+            except Exception:
+                s["positions"][addr]["entry_info_px"] = None
             s["equity_usd"] -= buy_cost_usd + float((my_buy or {}).get("gas_usd") or 0)  # buy gas 也是現金流
 
     # ---- snapshot 盤點 ----
