@@ -10,6 +10,8 @@ import {
   Zap,
   Terminal
 } from 'lucide-react';
+import { DangerToast } from '../types';
+import { NotificationBell } from './NotificationBell';
 
 interface HeaderProps {
   mode: TradingMode;
@@ -21,6 +23,10 @@ interface HeaderProps {
   isConnected?: boolean;
   isFallbackMode?: boolean;
   lastSyncTime?: Date | null;
+  notifications?: DangerToast[];
+  onDismissNotification?: (id: string) => void;
+  onClearAllNotifications?: () => void;
+  onSimulateDangerAlert?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -33,6 +39,10 @@ export const Header: React.FC<HeaderProps> = ({
   isConnected = false,
   isFallbackMode = false,
   lastSyncTime = null,
+  notifications = [],
+  onDismissNotification = () => {},
+  onClearAllNotifications = () => {},
+  onSimulateDangerAlert = () => {},
 }) => {
   const tabs = [
     { id: 'dashboard', label: '總覽看板', icon: Activity, badge: null },
@@ -118,6 +128,14 @@ export const Header: React.FC<HeaderProps> = ({
               <span>實盤 (/api/live)</span>
             </button>
           </div>
+
+          {/* Centralized Notification Bell */}
+          <NotificationBell
+            notifications={notifications}
+            onDismiss={onDismissNotification}
+            onClearAll={onClearAllNotifications}
+            onSimulateDangerAlert={onSimulateDangerAlert}
+          />
         </div>
       </div>
 

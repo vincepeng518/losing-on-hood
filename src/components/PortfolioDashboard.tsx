@@ -94,6 +94,10 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
     return chartHeight - padding.bottom - ((val - minEquity) / range) * innerH;
   };
 
+  const colWidth = equityPoints.length > 1
+    ? (chartWidth - padding.left - padding.right) / (equityPoints.length - 1)
+    : 40;
+
   // Generate SVG path points
   const realLinePoints = equityPoints.map((p, i) => `${getX(i)},${getY(p.equity)}`).join(' ');
   const realAreaPoints = `${getX(0)},${chartHeight - padding.bottom} ${realLinePoints} ${getX(equityPoints.length - 1)},${chartHeight - padding.bottom}`;
@@ -397,12 +401,12 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
       </div>
 
       {/* Hero Asset Drawdown SVG Curve Card with Simulated Trailing Stop Overlay */}
-      <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-md shadow-2xl">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 border-b border-white/10 pb-4">
+      <div className="rounded-none border border-white/10 bg-white/[0.03] p-6 backdrop-blur-md shadow-2xl">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
           <div>
             <h2 className="text-base font-bold text-white flex items-center gap-2">
               <span>資產淨值走勢與回測分叉軌跡 (Equity vs Trailing Stop Curve)</span>
-              <span className="rounded-full bg-white/5 border border-white/10 px-2 py-0.5 text-[10px] font-mono text-neutral-400">
+              <span className="rounded-none bg-white/5 border border-white/10 px-2 py-0.5 text-[10px] font-mono text-neutral-400">
                 逐筆平倉結算
               </span>
             </h2>
@@ -411,11 +415,11 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 shrink-0">
             {/* Toggle Overlay Button */}
             <button
               onClick={() => setShowSimulatedTrailing(!showSimulatedTrailing)}
-              className={`flex items-center gap-1.5 rounded-2xl border px-3 py-1.5 font-mono text-xs transition-all ${
+              className={`flex items-center gap-1.5 rounded-none border px-3 py-1.5 font-mono text-xs transition-all ${
                 showSimulatedTrailing
                   ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
                   : 'border-white/10 bg-white/5 text-neutral-400 hover:text-white'
@@ -424,45 +428,65 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
               <Sparkles className="h-3.5 w-3.5" />
               <span>{showSimulatedTrailing ? '已疊加動態移動停利軌跡' : '隱藏模擬停利軌跡'}</span>
               {totalSavedUsd > 0 && (
-                <span className="rounded-md bg-emerald-500/20 px-1.5 py-0.2 text-[10px] font-bold text-emerald-400">
+                <span className="rounded-none bg-emerald-500/20 px-1.5 py-0.2 text-[10px] font-bold text-emerald-400">
                   挽回 +${totalSavedUsd.toFixed(2)}
                 </span>
               )}
             </button>
-
-            {hoveredPoint ? (
-              <div className="flex items-center gap-3 rounded-2xl bg-white/5 px-3 py-1.5 border border-white/10 font-mono text-xs">
-                <div>
-                  <span className="text-neutral-400">標的: </span>
-                  <span className="font-bold text-white">${hoveredPoint.trade_symbol}</span>
-                </div>
-                <div>
-                  <span className="text-neutral-400">實盤: </span>
-                  <span className="font-bold text-white">${hoveredPoint.equity.toFixed(2)}</span>
-                </div>
-                {showSimulatedTrailing && hoveredPoint.simulated_equity && (
-                  <div>
-                    <span className="text-emerald-400">移動停利: </span>
-                    <span className="font-bold text-emerald-300">${hoveredPoint.simulated_equity.toFixed(2)}</span>
-                    <span className="ml-1 text-[10px] text-emerald-400">
-                      (+${(hoveredPoint.simulated_equity - hoveredPoint.equity).toFixed(2)})
-                    </span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="hidden sm:block font-mono text-xs text-neutral-500">
-                滑鼠指向圖表節點查看明細
-              </div>
-            )}
           </div>
         </div>
 
+        {/* Dedicated Fixed-Height Info Banner: Locked at h-9 to prevent any layout shift/jitter */}
+        <div className="mt-3 flex h-9 items-center justify-between rounded-none border border-white/10 bg-black/40 px-3.5 font-mono text-xs overflow-hidden">
+          <div className="flex items-center gap-2 truncate">
+            {hoveredPoint ? (
+              <div className="flex items-center gap-2.5 text-xs truncate">
+                <span className="text-neutral-400">
+                  標的: <strong className="text-white">${hoveredPoint.trade_symbol}</strong>
+                </span>
+                <span className="text-neutral-600">|</span>
+                <span className="text-neutral-400">
+                  實盤淨值: <strong className="text-white">${hoveredPoint.equity.toFixed(2)}</strong>
+                </span>
+                <span className="text-neutral-600">|</span>
+                <span className="text-neutral-400">
+                  損益:{' '}
+                  <strong className={hoveredPoint.trade_pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                    {hoveredPoint.trade_pnl >= 0 ? `+$${hoveredPoint.trade_pnl.toFixed(2)}` : `-$${Math.abs(hoveredPoint.trade_pnl).toFixed(2)}`}
+                  </strong>
+                </span>
+                {showSimulatedTrailing && hoveredPoint.simulated_equity && (
+                  <>
+                    <span className="text-neutral-600">|</span>
+                    <span className="text-emerald-400">
+                      動態停利後: <strong className="text-emerald-300">${hoveredPoint.simulated_equity.toFixed(2)}</strong>
+                      <span className="ml-1 text-[10px] text-emerald-400">
+                        (+${(hoveredPoint.simulated_equity - hoveredPoint.equity).toFixed(2)})
+                      </span>
+                    </span>
+                  </>
+                )}
+              </div>
+            ) : (
+              <span className="text-neutral-500 flex items-center gap-1.5">
+                <Activity className="h-3.5 w-3.5 text-neutral-500" />
+                滑鼠指向圖表節點即可查看各筆平倉實況與動態停利利潤挽救明細
+              </span>
+            )}
+          </div>
+          {hoveredPoint && (
+            <span className="hidden sm:inline-block shrink-0 rounded-none bg-white/10 px-2 py-0.5 text-[10px] text-neutral-300 font-bold">
+              第 {hoveredPoint.index + 1} / {equityPoints.length} 筆
+            </span>
+          )}
+        </div>
+
         {/* SVG Curve Canvas */}
-        <div className="mt-6 w-full overflow-x-auto">
+        <div className="mt-4 w-full overflow-x-auto">
           <svg 
             viewBox={`0 0 ${chartWidth} ${chartHeight}`} 
             className="w-full h-auto overflow-visible select-none"
+            onMouseLeave={() => setHoveredPoint(null)}
           >
             <defs>
               <linearGradient id="equityGrad" x1="0" y1="0" x2="0" y2="1">
@@ -568,6 +592,20 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
               points={realLinePoints}
             />
 
+            {/* Active Vertical Crosshair Guideline */}
+            {hoveredPoint && (
+              <line
+                x1={getX(hoveredPoint.index)}
+                y1={padding.top}
+                x2={getX(hoveredPoint.index)}
+                y2={chartHeight - padding.bottom}
+                stroke="rgba(255, 255, 255, 0.25)"
+                strokeWidth="1"
+                strokeDasharray="3 3"
+                pointerEvents="none"
+              />
+            )}
+
             {/* Interactive Data Points */}
             {equityPoints.map((pt, i) => {
               const x = getX(i);
@@ -578,18 +616,26 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
                 <g 
                   key={i}
                   onMouseEnter={() => setHoveredPoint(pt)}
-                  onMouseLeave={() => setHoveredPoint(null)}
                   className="cursor-pointer"
                 >
+                  {/* Invisible wide hit column - prevents mouse leave flicker */}
+                  <rect
+                    x={x - colWidth / 2}
+                    y={padding.top}
+                    width={colWidth}
+                    height={chartHeight - padding.top}
+                    fill="transparent"
+                  />
+
                   {/* Real point circle */}
                   <circle
                     cx={x}
                     cy={y}
-                    r={isHovered ? 6 : 4}
+                    r={isHovered ? 5.5 : 3.5}
                     fill={pt.trade_pnl >= 0 ? '#10B981' : '#EF4444'}
                     stroke="#050505"
-                    strokeWidth={isHovered ? 3 : 2}
-                    className="transition-all duration-150"
+                    strokeWidth={isHovered ? 2.5 : 1.5}
+                    pointerEvents="none"
                   />
 
                   {/* Simulated point circle */}
@@ -597,10 +643,11 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
                     <circle
                       cx={x}
                       cy={getY(pt.simulated_equity)}
-                      r={isHovered ? 5 : 3.5}
+                      r={isHovered ? 5 : 3}
                       fill="#10B981"
                       stroke="#050505"
                       strokeWidth={1.5}
+                      pointerEvents="none"
                     />
                   )}
 
@@ -612,6 +659,8 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
                     fontSize="9"
                     fontFamily="monospace"
                     textAnchor="middle"
+                    fontWeight={isHovered ? 'bold' : 'normal'}
+                    pointerEvents="none"
                   >
                     {pt.trade_symbol}
                   </text>

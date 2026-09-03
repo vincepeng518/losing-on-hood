@@ -9,7 +9,6 @@ import { WallOfShame } from './components/WallOfShame';
 import { AgentCouncil } from './components/AgentCouncil';
 import { StrategyDoctor } from './components/StrategyDoctor';
 import { FooterTicker } from './components/FooterTicker';
-import { ToastAlertContainer } from './components/ToastAlertContainer';
 
 export const App: React.FC = () => {
   const [mode, setMode] = useState<TradingMode>('paper');
@@ -174,6 +173,10 @@ export const App: React.FC = () => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
+  const handleClearAllToasts = () => {
+    setToasts([]);
+  };
+
   const handleSimulateDangerAlert = () => {
     const dangerDemos: Omit<DangerToast, 'id' | 'ts'>[] = [
       {
@@ -209,19 +212,12 @@ export const App: React.FC = () => {
       ts: Date.now(),
     };
 
-    setToasts((prev) => [newToast, ...(prev || []).slice(0, 3)]);
+    setToasts((prev) => [newToast, ...(prev || []).slice(0, 15)]);
   };
 
   return (
     <div className="relative min-h-screen bg-[#09090b] text-neutral-100 selection:bg-rose-500/30 selection:text-white font-sans antialiased overflow-x-hidden pb-16 rounded-none">
-      {/* Real-time Danger Toasts in Top Right */}
-      <ToastAlertContainer
-        toasts={toasts}
-        onDismiss={handleDismissToast}
-        onSimulateDangerAlert={handleSimulateDangerAlert}
-      />
-
-      {/* Main App Bar Header */}
+      {/* Main App Bar Header with Centralized Notification Bell */}
       <Header
         mode={mode}
         onModeChange={setMode}
@@ -232,6 +228,10 @@ export const App: React.FC = () => {
         isConnected={isConnected}
         isFallbackMode={isFallbackMode}
         lastSyncTime={lastSyncTime}
+        notifications={toasts}
+        onDismissNotification={handleDismissToast}
+        onClearAllNotifications={handleClearAllToasts}
+        onSimulateDangerAlert={handleSimulateDangerAlert}
       />
 
       {/* Main Content Workspace */}
@@ -252,7 +252,7 @@ export const App: React.FC = () => {
               onClick={handleSimulateDangerAlert}
               className="rounded-none border border-rose-500/40 bg-rose-950/40 px-3 py-1 text-rose-300 hover:bg-rose-900/60 hover:text-white transition-colors"
             >
-              + 觸發高危蜜罐/鯨魚警報 (測試 Toast)
+              + 觸發高危蜜罐/鯨魚警報 (測試鈴鐺通知)
             </button>
           </div>
         </div>
