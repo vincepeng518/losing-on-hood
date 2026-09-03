@@ -68,7 +68,7 @@ export const TradesAudit: React.FC<TradesAuditProps> = ({ trades, initialFilter 
         (m) => (m.agent || '').toLowerCase().includes(q) || (m.reason || '').toLowerCase().includes(q)
       );
       return matchSymbol || matchReason || matchMethod || matchAgent;
-    });
+    }).sort((a, b) => (Number(b.time) || 0) - (Number(a.time) || 0)); // 由新到舊
   }, [trades, activeFilter, searchTerm]);
 
   return (
