@@ -322,6 +322,9 @@ def judge_exit(p, info, addr):
     if peak >= 0.15:
         ratio = 0.7 if peak > 3.0 else (0.6 if peak > 1.0 else 0.5)  # peak>300% 守七成, >100% 守六成
         if chg < peak * ratio:
+            if chg < 0:
+                # 漲過又跌破進場價 → 真實死因是反轉虧損, 不是獲利回吐
+                return True, f"reversal loss (peak +{peak*100:.0f}% 未鎖利, now {chg*100:+.0f}%, 反轉跌破進場價)", peak, chg
             return True, f"giveback (peak +{peak*100:.0f}%, now {chg*100:+.0f}%, line +{peak*ratio*100:.0f}%)", peak, chg
     # 4) stale: 12h 無波動 → 縮短到 4h; 另加 45 分內無表現直接換標的
     if held_min > 720 and abs(chg) < 0.03:

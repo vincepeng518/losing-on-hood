@@ -555,6 +555,8 @@ class Judge:
         if peak >= 0.15:
             ratio = 0.7 if peak > 3.0 else (0.6 if peak > 1.0 else 0.5)
             if chg < peak * ratio:
+                if chg < 0:
+                    return True, f"reversal loss (peak +{peak*100:.0f}% 未鎖利, now {chg*100:+.0f}%, 反轉跌破進場價)", peak, chg
                 return True, f"giveback (peak +{peak*100:.0f}%, now {chg*100:+.0f}%)", peak, chg
         # stale / no momentum
         if held_min > 720 and abs(chg) < 0.03:
@@ -586,6 +588,12 @@ def settle(s, addr, p, sell_act, why, method, native_eth_out=None, fill_ratio=1.
     else:
         exit_usd = float(sell_act.get("buy_cost_usd") or sell_act.get("cost_usd") or 0)
     gas = float(sell_act.get("gas_usd") or 0) + (p.get("gas_usd") or 0)
+    # 單價（USD/幣）: 金額 ÷ 幣數量；買入量 p.token_amount 為 raw（含 decimals）
+    dec = 10 ** int(p.get("token_decimals", 18) or 18)
+    bought_h = float(p.get("token_amount") or 0) / dec if p.get("token_amount") else 0
+    sold_h = float(sell_act.get("token_amount") or 0)  # activity 為人類可讀
+    entry_price = entry_usd / bought_h if bought_h else None
+    exit_price = exit_usd / sold_h if sold_h else None
     pnl_usd = exit_usd - entry_usd - gas
     pnl_pct = pnl_usd / entry_usd * 100 if entry_usd else 0
     s["equity_usd"] += exit_usd - float(sell_act.get("gas_usd") or 0)
@@ -597,6 +605,7 @@ def settle(s, addr, p, sell_act, why, method, native_eth_out=None, fill_ratio=1.
         "pnl_pct": round(pnl_pct, 1), "reason": why,
         "pnl_usd": round(pnl_usd, 2), "exit_usd": round(exit_usd, 2),
         "alloc_usd": round(entry_usd, 2), "entry_usd": round(entry_usd, 2),
+        "entry_price": round(entry_price, 12) if entry_price else None, "exit_price": round(exit_price, 12) if exit_price else None,
         "gas_usd": round(gas, 2), "method": method,
         "fill_ratio": round(fill_ratio, 2),
         "tx_in": p.get("tx_in", ""), "tx_out": tx[:26],
