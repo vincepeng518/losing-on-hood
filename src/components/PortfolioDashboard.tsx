@@ -98,6 +98,9 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
     ? (chartWidth - padding.left - padding.right) / (equityPoints.length - 1)
     : 40;
 
+  // X-axis label subsampling to prevent overlapping text (max ~7 labels across chart)
+  const xLabelStep = equityPoints.length > 10 ? Math.ceil((equityPoints.length - 1) / 6) : 1;
+
   // Generate SVG path points
   const realLinePoints = equityPoints.map((p, i) => `${getX(i)},${getY(p.equity)}`).join(' ');
   const realAreaPoints = `${getX(0)},${chartHeight - padding.bottom} ${realLinePoints} ${getX(equityPoints.length - 1)},${chartHeight - padding.bottom}`;
@@ -310,13 +313,15 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
       {/* KPI Grid */}
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {/* Card 1: Current Equity */}
-        <div className="rounded-none border border-white/10 bg-white/[0.03] p-3 sm:p-4 backdrop-blur-md transition-all hover:border-white/20">
-          <div className="flex items-center justify-between text-xs text-neutral-400">
-            <span>當前帳戶淨值</span>
-            <Wallet className="h-3.5 w-3.5 text-neutral-500" />
-          </div>
-          <div className="mt-1.5 sm:mt-2 font-mono text-lg sm:text-xl font-bold tracking-tight text-white">
-            {formatUsd(state.equity_usd ?? state.current_equity ?? state.start_equity)}
+        <div className="rounded-none border border-white/10 bg-white/[0.03] p-3 sm:p-4 backdrop-blur-md transition-all hover:border-white/20 flex flex-col justify-between min-h-[96px] sm:min-h-[108px]">
+          <div>
+            <div className="flex items-center justify-between text-xs text-neutral-400">
+              <span>當前帳戶淨值</span>
+              <Wallet className="h-3.5 w-3.5 text-neutral-500" />
+            </div>
+            <div className="mt-1.5 sm:mt-2 font-mono text-lg sm:text-xl font-bold tracking-tight text-white">
+              {formatUsd(state.equity_usd ?? state.current_equity ?? state.start_equity)}
+            </div>
           </div>
           <div className="mt-1 flex items-center gap-1 font-mono text-[10px] sm:text-[11px] text-neutral-400">
             <span>初始本金: {formatUsd(state.start_equity)}</span>
@@ -324,17 +329,19 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
         </div>
 
         {/* Card 2: Realized PnL */}
-        <div className="rounded-none border border-white/10 bg-white/[0.03] p-3 sm:p-4 backdrop-blur-md transition-all hover:border-white/20">
-          <div className="flex items-center justify-between text-xs text-neutral-400">
-            <span>已實現損益</span>
-            {isNetPositive ? (
-              <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
-            ) : (
-              <TrendingDown className="h-3.5 w-3.5 text-rose-400" />
-            )}
-          </div>
-          <div className={`mt-1.5 sm:mt-2 font-mono text-lg sm:text-xl font-bold tracking-tight ${isNetPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {formatUsd(totalRealizedPnl, { showPlus: true })}
+        <div className="rounded-none border border-white/10 bg-white/[0.03] p-3 sm:p-4 backdrop-blur-md transition-all hover:border-white/20 flex flex-col justify-between min-h-[96px] sm:min-h-[108px]">
+          <div>
+            <div className="flex items-center justify-between text-xs text-neutral-400">
+              <span>已實現損益</span>
+              {isNetPositive ? (
+                <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
+              ) : (
+                <TrendingDown className="h-3.5 w-3.5 text-rose-400" />
+              )}
+            </div>
+            <div className={`mt-1.5 sm:mt-2 font-mono text-lg sm:text-xl font-bold tracking-tight ${isNetPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+              {formatUsd(totalRealizedPnl, { showPlus: true })}
+            </div>
           </div>
           <div className="mt-1 flex items-center gap-1 font-mono text-[10px] sm:text-[11px] text-neutral-400">
             <span>已平倉 {closedTrades.length} 筆</span>
@@ -342,13 +349,15 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
         </div>
 
         {/* Card 3: Win Rate */}
-        <div className="rounded-none border border-white/10 bg-white/[0.03] p-3 sm:p-4 backdrop-blur-md transition-all hover:border-white/20">
-          <div className="flex items-center justify-between text-xs text-neutral-400">
-            <span>勝率 (Win Rate)</span>
-            <Percent className="h-3.5 w-3.5 text-neutral-500" />
-          </div>
-          <div className="mt-1.5 sm:mt-2 font-mono text-lg sm:text-xl font-bold tracking-tight text-white">
-            {winRate.toFixed(0)}%
+        <div className="rounded-none border border-white/10 bg-white/[0.03] p-3 sm:p-4 backdrop-blur-md transition-all hover:border-white/20 flex flex-col justify-between min-h-[96px] sm:min-h-[108px]">
+          <div>
+            <div className="flex items-center justify-between text-xs text-neutral-400">
+              <span>勝率 (Win Rate)</span>
+              <Percent className="h-3.5 w-3.5 text-neutral-500" />
+            </div>
+            <div className="mt-1.5 sm:mt-2 font-mono text-lg sm:text-xl font-bold tracking-tight text-white">
+              {winRate.toFixed(0)}%
+            </div>
           </div>
           <div className="mt-1 flex items-center gap-1 font-mono text-[10px] sm:text-[11px] text-neutral-400">
             <span className="text-emerald-400">{winningTrades.length} 勝</span>
@@ -358,13 +367,15 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
         </div>
 
         {/* Card 4: Gas Spent */}
-        <div className="rounded-none border border-white/10 bg-white/[0.03] p-4 backdrop-blur-md transition-all hover:border-white/20">
-          <div className="flex items-center justify-between text-xs text-neutral-400">
-            <span>累積 Gas 磨損</span>
-            <Flame className="h-3.5 w-3.5 text-amber-500" />
-          </div>
-          <div className="mt-1.5 sm:mt-2 font-mono text-lg sm:text-xl font-bold tracking-tight text-amber-400">
-            ${totalGasUsd.toFixed(2)}
+        <div className="rounded-none border border-white/10 bg-white/[0.03] p-3 sm:p-4 backdrop-blur-md transition-all hover:border-white/20 flex flex-col justify-between min-h-[96px] sm:min-h-[108px]">
+          <div>
+            <div className="flex items-center justify-between text-xs text-neutral-400">
+              <span>累積 Gas 磨損</span>
+              <Flame className="h-3.5 w-3.5 text-amber-500" />
+            </div>
+            <div className="mt-1.5 sm:mt-2 font-mono text-lg sm:text-xl font-bold tracking-tight text-amber-400">
+              ${totalGasUsd.toFixed(2)}
+            </div>
           </div>
           <div className="mt-1 flex items-center gap-1 font-mono text-[10px] sm:text-[11px] text-neutral-400">
             <span>佔總資金 {((totalGasUsd / state.start_equity) * 100).toFixed(1)}%</span>
@@ -372,13 +383,15 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
         </div>
 
         {/* Card 5: Max Drawdown */}
-        <div className="rounded-none border border-white/10 bg-white/[0.03] p-3 sm:p-4 backdrop-blur-md transition-all hover:border-white/20">
-          <div className="flex items-center justify-between text-xs text-neutral-400">
-            <span>最大歷史回撤</span>
-            <AlertTriangle className="h-3.5 w-3.5 text-rose-500" />
-          </div>
-          <div className="mt-1.5 sm:mt-2 font-mono text-lg sm:text-xl font-bold tracking-tight text-rose-400">
-            -{maxDrawdown.toFixed(1)}%
+        <div className="rounded-none border border-white/10 bg-white/[0.03] p-3 sm:p-4 backdrop-blur-md transition-all hover:border-white/20 flex flex-col justify-between min-h-[96px] sm:min-h-[108px]">
+          <div>
+            <div className="flex items-center justify-between text-xs text-neutral-400">
+              <span>最大歷史回撤</span>
+              <AlertTriangle className="h-3.5 w-3.5 text-rose-500" />
+            </div>
+            <div className="mt-1.5 sm:mt-2 font-mono text-lg sm:text-xl font-bold tracking-tight text-rose-400">
+              -{maxDrawdown.toFixed(1)}%
+            </div>
           </div>
           <div className="mt-1 flex items-center gap-1 font-mono text-[10px] sm:text-[11px] text-neutral-400">
             <span>風控上限 25.0%</span>
@@ -386,16 +399,28 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
         </div>
 
         {/* Card 6: Worst Trade */}
-        <div className="rounded-none border border-white/10 bg-white/[0.03] p-3 sm:p-4 backdrop-blur-md transition-all hover:border-white/20">
-          <div className="flex items-center justify-between text-xs text-neutral-400">
-            <span>最深單筆虧損</span>
-            <ShieldCheck className="h-3.5 w-3.5 text-neutral-500" />
+        <div className="rounded-none border border-white/10 bg-white/[0.03] p-3 sm:p-4 backdrop-blur-md transition-all hover:border-white/20 flex flex-col justify-between min-h-[96px] sm:min-h-[108px]">
+          <div>
+            <div className="flex items-center justify-between text-xs text-neutral-400">
+              <span>最深單筆虧損</span>
+              <ShieldCheck className="h-3.5 w-3.5 text-neutral-500" />
+            </div>
+            <div className="mt-1.5 sm:mt-2 font-mono text-lg sm:text-xl font-bold tracking-tight text-rose-400">
+              {worstTrade ? `${worstTrade.pnl_pct.toFixed(1)}%` : '無'}
+            </div>
           </div>
-          <div className="mt-1.5 sm:mt-2 font-mono text-lg sm:text-xl font-bold tracking-tight text-rose-400">
-            {worstTrade ? `${worstTrade.pnl_pct.toFixed(1)}%` : '無'}
-          </div>
-          <div className="mt-1 flex items-center gap-1 font-mono text-[10px] sm:text-[11px] text-neutral-400">
-            <span>{worstTrade ? `$${worstTrade.symbol}` : '--'}</span>
+          <div className="mt-1 flex items-center gap-1.5 font-mono text-[10px] sm:text-[11px] overflow-hidden">
+            <span 
+              className="rounded-none bg-rose-500/15 border border-rose-500/30 px-1.5 py-0.5 font-bold text-rose-300 truncate max-w-[110px]"
+              title={worstTrade ? `$${worstTrade.symbol}` : '--'}
+            >
+              {worstTrade ? `$${worstTrade.symbol}` : '--'}
+            </span>
+            {worstTrade && (
+              <span className="text-neutral-500 shrink-0 text-[10px]">
+                (-${Math.abs(worstTrade.pnl_usd).toFixed(1)})
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -468,10 +493,22 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
                 )}
               </div>
             ) : (
-              <span className="text-neutral-500 flex items-center gap-1.5 text-[11px] sm:text-xs">
-                <Activity className="h-3.5 w-3.5 text-neutral-500 shrink-0" />
-                點選或觸控圖表節點即可查看各筆平倉實況與動態停利利潤挽救明細
-              </span>
+              <div className="flex items-center gap-2 text-[11px] sm:text-xs">
+                {lastPoint ? (
+                  <span className="text-neutral-300 flex items-center gap-1.5 flex-wrap">
+                    <Activity className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                    <span>最新平倉: <strong className="text-white font-mono">${lastPoint.trade_symbol}</strong></span>
+                    <span className="text-neutral-600 hidden xs:inline">|</span>
+                    <span className="text-neutral-400">損益: <strong className={lastPoint.trade_pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}>{lastPoint.trade_pnl >= 0 ? `+$${lastPoint.trade_pnl.toFixed(2)}` : `-$${Math.abs(lastPoint.trade_pnl).toFixed(2)}`}</strong></span>
+                    <span className="text-neutral-500 text-[10px] hidden sm:inline">(點選或觸控圖表節點查看各筆明細)</span>
+                  </span>
+                ) : (
+                  <span className="text-neutral-500 flex items-center gap-1.5 text-[11px] sm:text-xs">
+                    <Activity className="h-3.5 w-3.5 text-neutral-500 shrink-0" />
+                    點選或觸控圖表節點即可查看各筆平倉實況與動態停利利潤挽救明細
+                  </span>
+                )}
+              </div>
             )}
           </div>
           {hoveredPoint && (
@@ -652,23 +689,137 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
                       pointerEvents="none"
                     />
                   )}
+                </g>
+              );
+            })}
 
-                  {/* Symbol label below point */}
+            {/* X-axis Tick Marks and Adaptive Subsampled Labels (strictly avoids text overlap) */}
+            {equityPoints.map((pt, i) => {
+              const x = getX(i);
+              const isFirst = i === 0;
+              const isLast = i === equityPoints.length - 1;
+              const isSampled = isFirst || isLast || (i % xLabelStep === 0);
+              const isHovered = hoveredPoint?.index === pt.index;
+
+              // Only render if sampled or currently active
+              if (!isSampled && !isHovered) return null;
+
+              const labelText = isHovered 
+                ? `$${pt.trade_symbol}`
+                : isFirst 
+                  ? '起點' 
+                  : isLast 
+                    ? `最新 (#${i})` 
+                    : `#${i}`;
+
+              return (
+                <g key={`x-tick-${i}`} pointerEvents="none">
+                  <line
+                    x1={x}
+                    y1={chartHeight - padding.bottom}
+                    x2={x}
+                    y2={chartHeight - padding.bottom + (isHovered ? 6 : 4)}
+                    stroke={isHovered ? '#10B981' : 'rgba(255, 255, 255, 0.2)'}
+                    strokeWidth={isHovered ? 1.5 : 1}
+                  />
                   <text
                     x={x}
                     y={chartHeight - padding.bottom + 16}
-                    fill={isHovered ? '#FFFFFF' : '#737373'}
-                    fontSize="9"
+                    fill={isHovered ? '#10B981' : isLast ? '#E5E5E5' : '#737373'}
+                    fontSize={isHovered ? '10' : '9'}
                     fontFamily="monospace"
                     textAnchor="middle"
-                    fontWeight={isHovered ? 'bold' : 'normal'}
-                    pointerEvents="none"
+                    fontWeight={isHovered || isLast ? 'bold' : 'normal'}
                   >
-                    {pt.trade_symbol}
+                    {labelText}
                   </text>
                 </g>
               );
             })}
+
+            {/* Interactive Floating Tooltip Badge on Active Point */}
+            {hoveredPoint && (() => {
+              const hX = getX(hoveredPoint.index);
+              const hY = getY(hoveredPoint.equity);
+              const isPositive = hoveredPoint.trade_pnl >= 0;
+              const tooltipW = 138;
+              const tooltipH = 50;
+              
+              // Clamp X so tooltip doesn't get clipped at chart edges
+              const tipX = Math.max(padding.left + 4, Math.min(chartWidth - padding.right - tooltipW - 4, hX - tooltipW / 2));
+              // Position above point if enough vertical room, otherwise below
+              const tipY = hY - tooltipH - 12 < padding.top ? hY + 12 : hY - tooltipH - 12;
+
+              return (
+                <g pointerEvents="none">
+                  {/* Tooltip Card Background */}
+                  <rect
+                    x={tipX}
+                    y={tipY}
+                    width={tooltipW}
+                    height={tooltipH}
+                    rx="4"
+                    fill="#0A0A0A"
+                    stroke={isPositive ? '#10B981' : '#EF4444'}
+                    strokeWidth="1.2"
+                    strokeOpacity="0.9"
+                  />
+                  {/* Anchor tick from point to tooltip */}
+                  <line
+                    x1={hX}
+                    y1={hY}
+                    x2={hX}
+                    y2={hY > tipY ? tipY + tooltipH : tipY}
+                    stroke={isPositive ? '#10B981' : '#EF4444'}
+                    strokeWidth="1"
+                    strokeDasharray="2 2"
+                    strokeOpacity="0.6"
+                  />
+                  {/* Row 1: Symbol & Trade Index */}
+                  <text
+                    x={tipX + 8}
+                    y={tipY + 18}
+                    fill="#FFFFFF"
+                    fontSize="11"
+                    fontFamily="monospace"
+                    fontWeight="bold"
+                  >
+                    ${hoveredPoint.trade_symbol}
+                  </text>
+                  <text
+                    x={tipX + tooltipW - 8}
+                    y={tipY + 18}
+                    fill="#A3A3A3"
+                    fontSize="9"
+                    fontFamily="monospace"
+                    textAnchor="end"
+                  >
+                    #{hoveredPoint.index}
+                  </text>
+                  {/* Row 2: Realized PnL & Current Equity */}
+                  <text
+                    x={tipX + 8}
+                    y={tipY + 36}
+                    fill={isPositive ? '#34D399' : '#F87171'}
+                    fontSize="10"
+                    fontFamily="monospace"
+                    fontWeight="bold"
+                  >
+                    損益: {isPositive ? `+$${hoveredPoint.trade_pnl.toFixed(2)}` : `-$${Math.abs(hoveredPoint.trade_pnl).toFixed(2)}`}
+                  </text>
+                  <text
+                    x={tipX + tooltipW - 8}
+                    y={tipY + 36}
+                    fill="#A3A3A3"
+                    fontSize="9"
+                    fontFamily="monospace"
+                    textAnchor="end"
+                  >
+                    ${hoveredPoint.equity.toFixed(1)}
+                  </text>
+                </g>
+              );
+            })()}
           </svg>
         </div>
 
