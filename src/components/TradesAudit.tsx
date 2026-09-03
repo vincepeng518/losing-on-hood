@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { CopyAddress } from './CopyAddress';
 import { ClosedTrade } from '../types';
 import { Pagination } from './Pagination';
 import { 
@@ -299,7 +300,8 @@ export const TradesAudit: React.FC<TradesAuditProps> = ({ trades, initialFilter 
 
                       {(t as any).address && (
                         <div className="mt-2 flex flex-wrap items-center gap-3 font-mono text-[11px] text-neutral-500">
-                          <span>合約地址: {(t as any).address}</span>
+                          <span>合約地址:</span>
+                          <CopyAddress address={(t as any).address} className="text-neutral-500" />
                         </div>
                       )}
                     </div>

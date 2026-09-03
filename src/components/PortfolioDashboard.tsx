@@ -1,3 +1,4 @@
+import { CopyAddress } from './CopyAddress';
 import React, { useState } from 'react';
 import { AccountState, EquityPoint, ActivePosition } from '../types';
 import { buildEquityCurve, calculateExitReasonBreakdown } from '../tradeEnricher';
@@ -982,9 +983,7 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
                       </div>
                       {pos.address ? (
                         <div className="mt-1 font-mono text-xs text-neutral-400">
-                          {pos.address.length > 14
-                            ? `${pos.address.slice(0, 8)}...${pos.address.slice(-6)}`
-                            : pos.address}
+                          <CopyAddress address={pos.address} className="text-neutral-400" />
                         </div>
                       ) : (
                         <div className="mt-1 font-mono text-xs text-neutral-500">
