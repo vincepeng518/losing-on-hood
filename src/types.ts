@@ -4,90 +4,83 @@ export type AgentName = 'scanner' | 'narrative' | 'sniper' | 'judge' | 'risk';
 
 export type AgentVerdict = 'approve' | 'veto';
 
+export type ExitMethod = string;
+
 export interface AgentMeetingItem {
-  agent: AgentName;
-  verdict: AgentVerdict;
+  agent: string;
+  verdict: string;
   score: number;
   reason: string;
-  raw_reason?: string;
-  metric?: string;
 }
 
-export type ExitMethod = 
-  | 'flow_collapse' 
-  | 'fast_dump' 
-  | 'giveback' 
-  | 'downtrend' 
-  | 'condition_filled' 
-  | 'take_profit' 
-  | 'stop_loss' 
-  | 'judge_exit' 
-  | 'manual';
-
 export interface ClosedTrade {
-  id: string;
   symbol: string;
-  address?: string;
   time: string;
   alloc_usd: number;
   entry_price: number;
   exit_price: number;
-  entry_eth: number;
-  exit_eth: number;
   pnl_usd: number;
   pnl_pct: number;
-  peak: number; // Highest unrealized % reached during trade (e.g. 145.2%)
-  evaporated_usd?: number; // Estimated profit lost from peak
-  slippage_pct: number;
+  peak: number;
+  slip_pct: number;
   gas_usd: number;
-  method: ExitMethod | string;
+  method: string;
   exit_reason: string;
   held_min: number;
-  tx_in?: string;
-  tx_out?: string;
   meeting: AgentMeetingItem[];
+  // Optional client runtime / compatibility fields
+  id?: string;
+  entry_eth?: number;
+  exit_eth?: number;
+  address?: string;
+  evaporated_usd?: number;
+  slippage_pct?: number; // alias
 }
 
 export interface ActivePosition {
-  id: string;
   symbol: string;
-  address: string;
   alloc_usd: number;
   entry_price: number;
   current_price: number;
-  entry_eth: number;
-  entry_time: number;
   held_min: number;
   peak: number;
   current_pnl_pct: number;
   current_pnl_usd: number;
   slip_pct: number;
   gas_usd: number;
+  id?: string;
+  address?: string;
+  entry_eth?: number;
+  entry_time?: number;
   meeting?: AgentMeetingItem[];
+  sparkline?: number[];
+  entry_idx?: number;
+  peak_idx?: number;
+  order_book_health?: 'healthy' | 'caution' | 'critical_dump';
 }
 
 export interface AgentCouncilLogItem {
-  id: string;
-  ts: number;
   token: string;
-  address?: string;
-  agent: AgentName;
-  verdict: AgentVerdict;
+  ts: number;
+  agent: string;
+  verdict: string;
   score: number;
   reason: string;
-  raw_signal?: string;
+  id?: string;
+  danger_type?: string;
 }
 
 export interface AccountState {
   mode: TradingMode;
   start_equity: number;
-  current_equity: number;
   cash_usd: number;
-  onchain_eth?: number;
+  equity_usd: number;
+  current_equity?: number;
+  _onchain_usd?: number;
   positions: Record<string, ActivePosition>;
   closed: ClosedTrade[];
-  agent_log: AgentCouncilLogItem[];
-  risk_status: {
+  agent_log?: AgentCouncilLogItem[];
+  risk_status?: {
     max_positions: number;
     current_positions: number;
     risk_gate_open: boolean;
@@ -105,4 +98,52 @@ export interface EquityPoint {
   equity: number;
   drawdown_pct: number;
   peak_equity: number;
+  simulated_equity?: number;
+  simulated_diff?: number;
+}
+
+export interface ExitReasonBreakdownItem {
+  category: 'flow_collapse' | 'fast_dump' | 'giveback' | 'downtrend' | 'condition_filled' | 'other';
+  label: string;
+  count: number;
+  percentage: number;
+  total_loss_usd: number;
+  color: string;
+  description: string;
+}
+
+export interface AgentPerformanceStat {
+  name: AgentName;
+  total_reviewed: number;
+  approvals: number;
+  vetos: number;
+  veto_rate: number;
+  avg_score: number;
+  honeypots_blocked?: number;
+  whale_dumps_blocked?: number;
+  sniper_win_rate?: number;
+  sniper_avg_surge?: number;
+  anti_repeat_loss_blocked?: number;
+  risk_gates_triggered?: number;
+}
+
+export interface AgentWeightsConfig {
+  scanner: number;
+  narrative: number;
+  sniper: number;
+  judge: number;
+  risk: number;
+  sniper_chase_tolerance?: 'conservative' | 'moderate' | 'aggressive';
+}
+
+export interface DangerToast {
+  id: string;
+  ts: number;
+  token: string;
+  agent: AgentName | string;
+  level: 'critical' | 'warning';
+  title: string;
+  detail: string;
+  metric?: string;
+  danger_type?: 'honeypot' | 'whale_concentration' | 'liquidity_drain' | string;
 }

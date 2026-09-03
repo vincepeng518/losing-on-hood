@@ -61,11 +61,11 @@ export const TradesAudit: React.FC<TradesAuditProps> = ({ trades, initialFilter 
       // Search term
       if (!searchTerm) return true;
       const q = searchTerm.toLowerCase();
-      const matchSymbol = t.symbol.toLowerCase().includes(q);
-      const matchReason = t.exit_reason.toLowerCase().includes(q);
-      const matchMethod = String(t.method).toLowerCase().includes(q);
+      const matchSymbol = (t.symbol || '').toLowerCase().includes(q);
+      const matchReason = (t.exit_reason || '').toLowerCase().includes(q);
+      const matchMethod = String(t.method || '').toLowerCase().includes(q);
       const matchAgent = t.meeting?.some(
-        (m) => m.agent.toLowerCase().includes(q) || m.reason.toLowerCase().includes(q)
+        (m) => (m.agent || '').toLowerCase().includes(q) || (m.reason || '').toLowerCase().includes(q)
       );
       return matchSymbol || matchReason || matchMethod || matchAgent;
     });
@@ -194,7 +194,7 @@ export const TradesAudit: React.FC<TradesAuditProps> = ({ trades, initialFilter 
                       <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-xs text-neutral-400">
                         <span>{formatTimestamp(t.time)}</span>
                         <span>·</span>
-                        <span>{translateReason(t.exit_reason).slice(0, 38)}</span>
+                        <span>{(translateReason(t.exit_reason) || '').slice(0, 38)}</span>
                       </div>
                     </div>
                   </div>
@@ -255,32 +255,23 @@ export const TradesAudit: React.FC<TradesAuditProps> = ({ trades, initialFilter 
                           <span className="font-semibold text-white">{formatPrice(t.exit_price)}</span>
                           <span className="text-neutral-400 block text-[10px]">{formatEth(t.exit_eth)}</span>
                         </div>
-                        <div className="rounded-xl bg-white/[0.03] p-2.5 border border-white/5">
+                        <div className="rounded-none bg-white/[0.03] p-2.5 border border-white/5">
                           <span className="text-neutral-500 block text-[10px]">持倉時長</span>
                           <span className="font-semibold text-white">{t.held_min} 分鐘</span>
                         </div>
-                        <div className="rounded-xl bg-white/[0.03] p-2.5 border border-white/5">
+                        <div className="rounded-none bg-white/[0.03] p-2.5 border border-white/5">
                           <span className="text-neutral-500 block text-[10px]">滑價 (Slippage)</span>
-                          <span className="font-semibold text-neutral-200">{t.slippage_pct}%</span>
+                          <span className="font-semibold text-neutral-200">{(t.slip_pct ?? t.slippage_pct ?? 0).toFixed(2)}%</span>
                         </div>
-                        <div className="rounded-xl bg-white/[0.03] p-2.5 border border-white/5">
+                        <div className="rounded-none bg-white/[0.03] p-2.5 border border-white/5">
                           <span className="text-neutral-500 block text-[10px]">手續費 (Gas USD)</span>
                           <span className="font-semibold text-amber-400">${t.gas_usd.toFixed(3)}</span>
                         </div>
                       </div>
 
-                      {(t.tx_in || t.tx_out) && (
+                      {(t as any).address && (
                         <div className="mt-2 flex flex-wrap items-center gap-3 font-mono text-[11px] text-neutral-500">
-                          {t.tx_in && (
-                            <span className="flex items-center gap-1 hover:text-neutral-300">
-                              <span>進場 TX: {t.tx_in}</span>
-                            </span>
-                          )}
-                          {t.tx_out && (
-                            <span className="flex items-center gap-1 hover:text-neutral-300">
-                              <span>出場 TX: {t.tx_out}</span>
-                            </span>
-                          )}
+                          <span>合約地址: {(t as any).address}</span>
                         </div>
                       )}
                     </div>
@@ -292,12 +283,12 @@ export const TradesAudit: React.FC<TradesAuditProps> = ({ trades, initialFilter 
                           <span className="font-mono text-xs font-bold text-neutral-400 uppercase">
                             5-Agent 開倉委員會審查決策 (Meeting Deliberation)
                           </span>
-                          <span className="rounded-full bg-white/5 px-2 py-0.5 font-mono text-[10px] text-neutral-400">
-                            全體 5 票通過
+                          <span className="rounded-none bg-white/5 px-2 py-0.5 font-mono text-[10px] text-neutral-400">
+                            全體通過
                           </span>
                         </div>
 
-                        <div className="space-y-2 rounded-2xl border border-white/10 bg-black/60 p-3">
+                        <div className="space-y-2 rounded-none border border-white/10 bg-black/60 p-3">
                           {t.meeting.map((m, idx) => {
                             const style = getAgentColor(m.agent);
                             const isApproved = m.verdict === 'approve';
@@ -305,16 +296,16 @@ export const TradesAudit: React.FC<TradesAuditProps> = ({ trades, initialFilter 
                             return (
                               <div
                                 key={idx}
-                                className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 rounded-xl bg-white/[0.02] p-2.5 border border-white/5 font-mono text-xs"
+                                className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 rounded-none bg-white/[0.02] p-2.5 border border-white/5 font-mono text-xs"
                               >
                                 <div className="flex items-center gap-2">
-                                  <span className={`w-20 rounded-md border ${style.border} ${style.bg} ${style.text} px-2 py-0.5 text-center font-bold uppercase`}>
+                                  <span className={`w-20 rounded-none border ${style.border} ${style.bg} ${style.text} px-2 py-0.5 text-center font-bold uppercase`}>
                                     {m.agent}
                                   </span>
-                                  <span className="rounded-md bg-white/5 px-1.5 py-0.5 text-[10px] text-neutral-400">
+                                  <span className="rounded-none bg-white/5 px-1.5 py-0.5 text-[10px] text-neutral-400">
                                     {m.score} 分
                                   </span>
-                                  <span className={`flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
+                                  <span className={`flex items-center gap-0.5 rounded-none px-1.5 py-0.5 text-[10px] font-bold ${
                                     isApproved ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'
                                   }`}>
                                     {isApproved ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
@@ -324,9 +315,9 @@ export const TradesAudit: React.FC<TradesAuditProps> = ({ trades, initialFilter 
 
                                 <div className="flex-1 sm:text-right text-neutral-300">
                                   <div>{translateReason(m.reason)}</div>
-                                  {showRawSignals && m.raw_reason && (
+                                  {showRawSignals && (
                                     <div className="mt-0.5 text-[10px] text-neutral-500 font-mono">
-                                      信號代碼: {m.raw_reason}
+                                      原始理由: {m.reason}
                                     </div>
                                   )}
                                 </div>

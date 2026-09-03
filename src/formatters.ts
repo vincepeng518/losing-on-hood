@@ -40,7 +40,7 @@ const ZH_RULES: [RegExp, string][] = [
   [/^swap timeout/i, '鏈上 Swap 交易逾時'],
 ];
 
-export function translateReason(raw: string | undefined | null): string {
+export function zh(raw: string | undefined | null): string {
   if (!raw) return '無附加訊號';
   let s = String(raw).trim();
   for (const [pattern, replacement] of ZH_RULES) {
@@ -60,6 +60,8 @@ export function translateReason(raw: string | undefined | null): string {
     .replace(/\bholders=/gi, '持有人數 ')
     .replace(/\bscore=/gi, '綜合評分 ');
 }
+
+export const translateReason = zh;
 
 export function formatUsd(val: number, options?: { showPlus?: boolean; decimals?: number }): string {
   const decimals = options?.decimals ?? 2;
@@ -103,7 +105,7 @@ export function formatTimestamp(tsOrDate: number | string): string {
   return `${m}/${day} ${h}:${min}`;
 }
 
-export function getAgentColor(agent: AgentName): { bg: string; text: string; border: string } {
+export function getAgentColor(agent: AgentName | string): { bg: string; text: string; border: string } {
   switch (agent) {
     case 'scanner':
       return { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/30' };

@@ -1,25 +1,34 @@
 import React, { useState } from 'react';
-import { ClosedTrade } from '../types';
+import { ClosedTrade, TradingMode } from '../types';
 import { simulateTrailingStop } from '../tradeEnricher';
-import { formatUsd, formatPercent } from '../formatters';
+import { formatUsd } from '../formatters';
+import { initialPaperState } from '../data/mockData';
 import { 
   Stethoscope, 
   Sliders, 
   Flame, 
-  TrendingUp, 
   Check, 
   Copy, 
   Code2, 
-  Zap, 
-  DollarSign,
-  ShieldCheck
+  ShieldCheck,
+  Radio,
+  AlertCircle
 } from 'lucide-react';
 
 interface StrategyDoctorProps {
   trades: ClosedTrade[];
+  isRealData?: boolean;
+  mode?: TradingMode;
 }
 
-export const StrategyDoctor: React.FC<StrategyDoctorProps> = ({ trades }) => {
+export const StrategyDoctor: React.FC<StrategyDoctorProps> = ({ 
+  trades,
+  isRealData = false,
+  mode = 'paper'
+}) => {
+  // Demo mode override when real trades are 0 or explicitly requested
+  const [forceDemoMode, setForceDemoMode] = useState<boolean>(false);
+
   // Trailing stop sliders
   const [triggerPeak, setTriggerPeak] = useState<number>(30); // Peak % to arm trailing stop
   const [lockRatio, setLockRatio] = useState<number>(65); // Lock 65% of peak
@@ -28,8 +37,15 @@ export const StrategyDoctor: React.FC<StrategyDoctorProps> = ({ trades }) => {
   const [positionAlloc, setPositionAlloc] = useState<number>(8); // $8 default
   const [copiedCode, setCopiedCode] = useState(false);
 
-  // Run backtest
-  const backtest = simulateTrailingStop(trades, triggerPeak, lockRatio);
+  // Determine active trades for backtesting
+  const hasRealTrades = isRealData && trades.length > 0;
+  const isDemonstrationMode = !isRealData || forceDemoMode || trades.length === 0;
+  const activeTrades = (isDemonstrationMode && trades.length === 0)
+    ? initialPaperState.closed
+    : (forceDemoMode ? initialPaperState.closed : trades);
+
+  // Run backtest on active trades
+  const backtest = simulateTrailingStop(activeTrades, triggerPeak, lockRatio);
 
   // Gas calculation
   const avgGasPerTrade = 0.42; // Avg gas spent per buy+sell
@@ -74,30 +90,80 @@ export const StrategyDoctor: React.FC<StrategyDoctorProps> = ({ trades }) => {
   return (
     <div className="space-y-6">
       {/* Header Doctor Banner */}
-      <div className="relative overflow-hidden rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/40 via-neutral-900/60 to-black p-6 shadow-2xl backdrop-blur-md">
-        <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400">
-            <Stethoscope className="h-6 w-6" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold tracking-tight text-white">
-                策略診斷與動態回測儀 (Strategy Doctor)
-              </h2>
-              <span className="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2.5 py-0.5 font-mono text-xs font-bold text-emerald-300">
-                OFFLINE SIMULATOR
-              </span>
+      <div className={`relative overflow-hidden rounded-none border p-6 shadow-2xl backdrop-blur-md ${
+        isDemonstrationMode 
+          ? 'border-amber-500/40 bg-gradient-to-br from-amber-950/30 via-neutral-900/70 to-black'
+          : 'border-emerald-500/40 bg-gradient-to-br from-emerald-950/30 via-neutral-900/70 to-black'
+      }`}>
+        <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-none border ${
+              isDemonstrationMode 
+                ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' 
+                : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+            }`}>
+              <Stethoscope className="h-6 w-6" />
             </div>
-            <p className="mt-1 text-xs text-neutral-300 max-w-3xl">
-              直接基於鏈上真實平倉數據，即時回測「動態移動停利 (Trailing Take-Profit)」與「單筆開倉 Gas 磨損率」，量化評估可為策略挽回的資金金額。
-            </p>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-xl font-bold tracking-tight text-white">
+                  策略診斷與動態回測儀 (Strategy Doctor)
+                </h2>
+                {isDemonstrationMode ? (
+                  <span className="rounded-none bg-amber-500/20 border border-amber-500/40 px-2.5 py-0.5 font-mono text-xs font-bold text-amber-300">
+                    示範模式 (DEMO MODE)
+                  </span>
+                ) : (
+                  <span className="rounded-none bg-emerald-500/20 border border-emerald-500/40 px-2.5 py-0.5 font-mono text-xs font-bold text-emerald-300 flex items-center gap-1">
+                    <Radio className="h-3 w-3 animate-pulse text-emerald-400" />
+                    鏈上真實平倉數據 · 即時回測中
+                  </span>
+                )}
+              </div>
+
+              <p className="mt-1 text-xs text-neutral-300 max-w-3xl">
+                {isDemonstrationMode ? (
+                  <span>
+                    【示範模式說明】：當前為示範回測模式（
+                    {trades.length === 0 
+                      ? '真實 API 目前尚未產生已平倉交易記錄，已自動帶入歷史示範樣本供您回測驗證' 
+                      : 'API 離線或使用者手動切換為示範資料'}
+                    ）。此處回測使用內建 {activeTrades.length} 筆經典回吐交易進行演算。
+                  </span>
+                ) : (
+                  <span>
+                    【真實鏈上資料源】：當前回測直接讀取自 <code className="text-emerald-300 font-mono">/api/{mode === 'paper' ? 'state' : 'live'}</code> 的即時平倉紀錄，共計 <strong className="text-white">{trades.length} 筆</strong> 真實平倉樣本！
+                  </span>
+                )}
+              </p>
+            </div>
           </div>
+
+          {/* Toggle button between Real and Demo */}
+          {hasRealTrades && (
+            <button
+              onClick={() => setForceDemoMode(!forceDemoMode)}
+              className="shrink-0 rounded-none border border-white/20 bg-white/5 hover:bg-white/10 px-3 py-1.5 font-mono text-xs text-neutral-300 transition-all"
+            >
+              {forceDemoMode ? '切回真實平倉資料' : '切換為示範模式'}
+            </button>
+          )}
         </div>
+
+        {/* Real trades empty alert */}
+        {isRealData && trades.length === 0 && (
+          <div className="mt-4 flex items-center gap-2 rounded-none border border-amber-500/30 bg-amber-950/20 p-2.5 text-xs text-amber-300 font-mono">
+            <AlertCircle className="h-4 w-4 shrink-0 text-amber-400" />
+            <span>
+              即時 API 連線正常：目前鏈上持倉持續巡航中，尚未產生已平倉單。下方回測儀已自動啟用示範資料，方便您即時測試移動停利與 Gas 磨損演算法。
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Module 1: Trailing Take-Profit Simulator */}
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-md shadow-xl space-y-6">
+        <div className="rounded-none border border-white/10 bg-white/[0.03] p-6 backdrop-blur-md shadow-xl space-y-6">
           <div className="flex items-center justify-between border-b border-white/10 pb-4">
             <div className="flex items-center gap-2">
               <Sliders className="h-5 w-5 text-emerald-400" />
@@ -105,8 +171,8 @@ export const StrategyDoctor: React.FC<StrategyDoctorProps> = ({ trades }) => {
                 動態移動停利回測 (Trailing Stop)
               </h3>
             </div>
-            <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 font-mono text-xs text-emerald-300 font-bold">
-              即時回測 {trades.length} 筆歷史交易
+            <span className="rounded-none bg-emerald-500/20 px-2 py-0.5 font-mono text-xs text-emerald-300 font-bold">
+              回測樣本: {activeTrades.length} 筆{isDemonstrationMode ? ' (示範)' : ' (真實)'}
             </span>
           </div>
 
@@ -153,21 +219,23 @@ export const StrategyDoctor: React.FC<StrategyDoctorProps> = ({ trades }) => {
 
           {/* Simulation Output Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 font-mono">
-            <div className="rounded-2xl border border-white/10 bg-black/40 p-3">
-              <span className="text-neutral-500 text-[10px] block">原始歷史 PnL</span>
+            <div className="rounded-none border border-white/10 bg-black/40 p-3">
+              <span className="text-neutral-500 text-[10px] block">
+                {isDemonstrationMode ? '示範歷史 PnL' : '原始真實 PnL'}
+              </span>
               <span className={`text-base font-bold ${backtest.originalPnlUsd >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                 {formatUsd(backtest.originalPnlUsd, { showPlus: true })}
               </span>
             </div>
 
-            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-3">
+            <div className="rounded-none border border-emerald-500/30 bg-emerald-950/20 p-3">
               <span className="text-neutral-500 text-[10px] block">回測優化後 PnL</span>
               <span className="text-base font-bold text-emerald-400">
                 {formatUsd(backtest.simulatedPnlUsd, { showPlus: true })}
               </span>
             </div>
 
-            <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/20 p-3 sm:col-span-1 col-span-2">
+            <div className="rounded-none border border-emerald-500/40 bg-emerald-500/20 p-3 sm:col-span-1 col-span-2">
               <span className="text-emerald-300 text-[10px] block">為帳戶多挽回資金</span>
               <span className="text-lg font-bold text-emerald-300">
                 +${backtest.savedUsd.toFixed(2)}
@@ -175,13 +243,13 @@ export const StrategyDoctor: React.FC<StrategyDoctorProps> = ({ trades }) => {
             </div>
           </div>
 
-          <div className="rounded-2xl bg-black/40 p-3 border border-white/5 font-mono text-xs text-neutral-400">
+          <div className="rounded-none bg-black/40 p-3 border border-white/5 font-mono text-xs text-neutral-400">
             在當前參數下，此規則將直接改善 <span className="font-bold text-white">{backtest.improvedTradesCount} 筆</span> 嚴重回吐交易，整體損益大幅改善 <span className="font-bold text-emerald-400">+{backtest.avgPnlChangePct}%</span>。
           </div>
         </div>
 
         {/* Module 2: Gas Handicap Calculator */}
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-md shadow-xl space-y-6">
+        <div className="rounded-none border border-white/10 bg-white/[0.03] p-6 backdrop-blur-md shadow-xl space-y-6">
           <div className="flex items-center justify-between border-b border-white/10 pb-4">
             <div className="flex items-center gap-2">
               <Flame className="h-5 w-5 text-amber-500" />
@@ -189,7 +257,7 @@ export const StrategyDoctor: React.FC<StrategyDoctorProps> = ({ trades }) => {
                 單筆開倉 Gas 磨損診斷
               </h3>
             </div>
-            <span className="rounded-md bg-amber-500/20 px-2 py-0.5 font-mono text-xs text-amber-300 font-bold">
+            <span className="rounded-none bg-amber-500/20 px-2 py-0.5 font-mono text-xs text-amber-300 font-bold">
               平均 Gas $0.42 / 筆
             </span>
           </div>
@@ -216,12 +284,12 @@ export const StrategyDoctor: React.FC<StrategyDoctorProps> = ({ trades }) => {
 
           {/* Gas Ratio Cards */}
           <div className="grid grid-cols-2 gap-3 font-mono">
-            <div className="rounded-2xl border border-white/10 bg-black/40 p-3">
+            <div className="rounded-none border border-white/10 bg-black/40 p-3">
               <span className="text-neutral-500 text-[10px] block">進出雙向 Gas 成本</span>
               <span className="text-base font-bold text-amber-400">${avgGasPerTrade.toFixed(2)}</span>
             </div>
 
-            <div className={`rounded-2xl border p-3 ${
+            <div className={`rounded-none border p-3 ${
               gasHandicapPct > 4.0 ? 'border-red-500/30 bg-red-950/20' : 'border-emerald-500/30 bg-emerald-950/20'
             }`}>
               <span className="text-neutral-500 text-[10px] block">本金初始負重 (Handicap)</span>
@@ -231,7 +299,7 @@ export const StrategyDoctor: React.FC<StrategyDoctorProps> = ({ trades }) => {
             </div>
           </div>
 
-          <div className="rounded-2xl bg-black/40 p-3 border border-white/5 font-mono text-xs text-neutral-400">
+          <div className="rounded-none bg-black/40 p-3 border border-white/5 font-mono text-xs text-neutral-400">
             {gasHandicapPct > 4.0 ? (
               <span className="text-red-300">
                 ⚠️ 當前倉位 ${positionAlloc} 下，手續費磨損高達 {gasHandicapPct.toFixed(1)}%，意味著每筆交易未漲先輸 {gasHandicapPct.toFixed(1)}%！建議將單筆開倉資金調整至 $15~$25 以上，或限制交易次數。
@@ -246,7 +314,7 @@ export const StrategyDoctor: React.FC<StrategyDoctorProps> = ({ trades }) => {
       </div>
 
       {/* Module 3: Bot Code Patch */}
-      <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-md shadow-xl space-y-4">
+      <div className="rounded-none border border-white/10 bg-white/[0.03] p-6 backdrop-blur-md shadow-xl space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
           <div className="flex items-center gap-2">
             <Code2 className="h-5 w-5 text-purple-400" />
@@ -262,14 +330,14 @@ export const StrategyDoctor: React.FC<StrategyDoctorProps> = ({ trades }) => {
 
           <button
             onClick={copyToClipboard}
-            className="flex items-center gap-1.5 rounded-2xl bg-purple-500/20 border border-purple-500/40 px-3.5 py-1.5 font-mono text-xs font-bold text-purple-300 hover:bg-purple-500/30 transition-all shadow-lg"
+            className="flex items-center gap-1.5 rounded-none bg-purple-500/20 border border-purple-500/40 px-3.5 py-1.5 font-mono text-xs font-bold text-purple-300 hover:bg-purple-500/30 transition-all shadow-lg"
           >
             {copiedCode ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
             <span>{copiedCode ? '已複製到剪貼簿' : '複製 Python 修復代碼'}</span>
           </button>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/80 p-4 font-mono text-xs text-neutral-300">
+        <div className="overflow-hidden rounded-none border border-white/10 bg-black/80 p-4 font-mono text-xs text-neutral-300">
           <pre className="overflow-x-auto whitespace-pre">
             <code>{pythonBotCode}</code>
           </pre>
@@ -278,3 +346,4 @@ export const StrategyDoctor: React.FC<StrategyDoctorProps> = ({ trades }) => {
     </div>
   );
 };
+

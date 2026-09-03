@@ -1,6 +1,6 @@
 {
   "name": "Losing on Hood",
-  "description": "Robinhood Chain Meme 5-Agent 量化交易審計與回測終端（Frosted Glass 毛玻璃擬態風格）",
+  "description": "Robinhood Chain Meme 5-Agent 量化交易審計與即時動態回測終端（零圓角 Linear 暗色風格）",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
