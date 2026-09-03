@@ -342,7 +342,8 @@ def judge_exit(p, info, addr):
                         ("trail lock 未啟動(peak<30%), 僅 giveback 50% 保底被穿" if peak < 0.30 else
                          "trail lock 65% 保底被穿, 反轉快於 1m tick"))
                 return True, f"loss exit — {mech} (peak +{peak*100:.0f}%, now {chg*100:+.0f}%)", peak, chg
-            return True, f"giveback (peak +{peak*100:.0f}%, now {chg*100:+.0f}%, line +{peak*ratio*100:.0f}%)", peak, chg
+            # 出場理由=機制觸發, 不寫「利潤回吐」(那是結果描述)
+            return True, f"浮盈回撤出場 (peak +{peak*100:.0f}%, 現 +{chg*100:.0f}%, 跌破保底 +{peak*ratio*100:.0f}%)", peak, chg
     # 4) stale: 12h 無波動 → 縮短到 4h; 另加 45 分內無表現直接換標的
     if held_min > 720 and abs(chg) < 0.03:
         return True, f"stale 12h {chg*100:+.0f}%", peak, chg
@@ -559,14 +560,17 @@ def tick():
                 drop5 = closes[-1]/closes[0] - 1
                 red = sum(1 for i in range(1,len(closes)) if closes[i] < closes[i-1])
                 red_skip = (drop5 < -0.06 or (len(recent) >= 4 and red >= 4))
-                pump_skip = drop5 > 0.50  # 追高防護 (MARI 教訓: 進場後 9 分鐘 +142%→-87.7%, 追暴拉位=接崩盤刀)
+                pump_skip = drop5 > 0.50  # 追暴拉 (MARI 教訓)
                 if red_skip or pump_skip:
-                    if pump_skip and not red_skip:
-                        print(f"SKIP {sym}: 追高防護 (5m +{drop5*100:.0f}% 已暴拉, 進場=接崩盤前刀)")
-                    elif red_skip:
-                        print(f"SKIP {sym}: 進場當下動能壞 (5m {drop5*100:+.1f}%, 紅K {red}/4)")
-                    s["seen"][addr] = time.time()
-                    continue
+                    # GRASS 實證: 5m+73% + smb=7 → +757%。暴拉但 smart 仍加碼 = 下半場, 允許
+                    smb_gate = smart_buy_addrs().get(addr.lower(), 0) >= 2
+                    if red_skip or (pump_skip and not smb_gate):
+                        if red_skip:
+                            print(f"SKIP {sym}: 進場當下動能壞 (5m {drop5*100:+.1f}%, 紅K {red}/4)")
+                        else:
+                            print(f"SKIP {sym}: 追高防護 (5m +{drop5*100:.0f}%, smb={smart_buy_addrs().get(addr.lower(),0)}<2)")
+                        s["seen"][addr] = time.time()
+                        continue
                 # 高位幣需 smart 錢包當下仍在買 (今日實證: 前1h>100% 的 31 幣中位仍 +52% 但分化大,
                 # MARI smb=0 進場死 -81.7%; smb>=2 = 近30分 smart 還在加碼 = 下半場訊號)
                 _t = t  # trending token dict
