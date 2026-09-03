@@ -489,11 +489,10 @@ def tick():
     available = gas - MIN_GAS_ETH
     if available > 0 and len(s["positions"]) < MAX_OPEN:
         toks = fetch_trending()
-        # gas 節流: 最近 1 小時有開過倉就不掃新倉 (19筆 gas 18.48u = 78% 虧損, 頻率就是成本)
+        # gas 節流: 只擋開倉不擋掃描（agent_log 要累積樣本）；開倉限 30 分/筆
         open_ts = [p.get("opened_ts") or 0 for p in s["positions"].values()]
         last_buy_ts = max(open_ts) if open_ts else (s["closed"][-1].get("_buy_ts", 0) if s["closed"] else 0)
-        if last_buy_ts > time.time() - 3600:
-            return
+        buy_throttle = last_buy_ts > time.time() - 1800  # 1h→30min
         for t in toks[:30]:
             if len(s["positions"]) >= MAX_OPEN: break
             addr = t["address"]
@@ -511,6 +510,7 @@ def tick():
             if rej or score < 5:  # gas 佔總虧損78%, 減頻率=直接止血 (19筆gas 18.48u)
                 if rej: s["seen"][addr] = time.time()  # 被閘門擋的也記，48h 內不重查
                 continue
+            if last_buy_ts > time.time() - 1800: break  # gas 節流: 開倉至少間隔 30 分（掃描仍記錄）
             alloc_usd = min(PER_TRADE, s["equity_usd"] * 0.5, available * ep * 0.90)  # score 加碼移除: 未驗證, 50筆後再評
             if alloc_usd < 2.5: break
             alloc_eth = alloc_usd / ep
