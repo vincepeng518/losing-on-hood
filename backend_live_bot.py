@@ -457,7 +457,10 @@ def close_position(addr, strat_open_ids):
         r = subprocess.run(["gmgn-cli", "order", "strategy", "cancel", "--chain", CHAIN,
             "--from", WALLET, "--order-id", sid, "--order-type", "smart_trade",
             "--raw"], capture_output=True, text=True, timeout=120)
-        print(f"  [cancel] {(r.stdout or '')[:150]}")
+        if r.returncode != 0:
+            print(f"  [cancel FAILED] rc={r.returncode} out={(r.stdout or '')[:300]}")
+            return False, "cancel_failed", None
+        print(f"  [cancel OK] {(r.stdout or '')[:200]}")
         for _ in range(10):  # 實測 GMGN 歸還幣可達 ~1 分鐘（RIM 案例 30s 不夠）
             time.sleep(8)
             bal = token_balance_raw(addr)
@@ -522,6 +525,9 @@ def tick():
             print(f"  {p['symbol']} balance API 異常 — 本輪跳過平倉判斷, 下輪重查")
             continue
         if sells and bal == 0:
+            if p.get("tp1_filled"):
+                # TP1 半倉成交後剩餘在 escrow，bal==0 是正常狀態 — 不誤刪全倉
+                continue
             a = sells[-1]
             if settle(s, addr, p, a, "condition order filled", "cond"):
                 del s["positions"][addr]
@@ -696,6 +702,11 @@ def tick():
                 in_raw = _to_int(my_buy.get("input_amount"))
             if not out_raw and my_buy:
                 out_raw = _to_int(my_buy.get("output_amount"))
+            # 最後防線: my_buy 3 次重試後仍拿不到 input_amount → alloc_eth 回填
+            # (swap 已確認成功, 我們知道花了多少 ETH, 不讓 position 記 0 成本)
+            if not in_raw:
+                in_raw = _to_int(alloc_eth * ETH_DECIMALS)
+                print(f"  [WARN] {sym} buy input_amount 缺失, 以 alloc_eth {alloc_eth:.6f} 回填")
             spent_eth = in_raw / ETH_DECIMALS
             buy_cost_usd = spent_eth * ep
             quote_qty = _to_float((my_buy or {}).get("quote_amount"))
