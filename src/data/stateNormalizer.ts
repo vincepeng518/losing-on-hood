@@ -140,6 +140,7 @@ export function normalizeAccountState(
           reason: String(a.reason || ''),
           id: a.id || `log_${i}`,
           danger_type: a.danger_type,
+          address: a.address ? String(a.address) : undefined,
         });
       }
     }

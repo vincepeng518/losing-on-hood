@@ -68,6 +68,7 @@ export interface AgentCouncilLogItem {
   reason: string;
   id?: string;
   danger_type?: string;
+  address?: string;
 }
 
 export interface AccountState {

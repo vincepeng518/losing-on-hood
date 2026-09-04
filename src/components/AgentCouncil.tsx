@@ -146,6 +146,25 @@ export const AgentCouncil: React.FC<AgentCouncilProps> = ({
   const approvedCount = logs.filter((l) => l.verdict === 'approve').length;
   const vetoCount = logs.filter((l) => l.verdict === 'veto').length;
 
+  // 2026-09-04: approve 單是否實際開倉 — 用 closed.address 對照 agent_log.address
+  const openedAddresses = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of closedTrades) {
+      if (t.address) set.add(t.address.toLowerCase());
+    }
+    return set;
+  }, [closedTrades]);
+
+  const tradeOutcome = (log: AgentCouncilLogItem): { opened: boolean; reason?: string } => {
+    if (log.verdict !== 'approve') return { opened: false };
+    const addr = log.address?.toLowerCase();
+    if (addr && openedAddresses.has(addr)) return { opened: true };
+    if (log.reason.includes('gas 節流未進場')) return { opened: false, reason: '未開單：gas 節流（15 分鐘內已開倉）' };
+    if (log.reason.includes('槽位') || log.reason.includes('reached cap')) return { opened: false, reason: '未開單：槽位已滿' };
+    if (log.address) return { opened: false, reason: '未開單：無開倉記錄（可能評分後被節流/資金不足）' };
+    return { opened: false, reason: '未開單：舊紀錄無 address，無法判定' };
+  };
+
   const handleSaveWeights = () => {
     if (onUpdateWeights) {
       onUpdateWeights(localWeights);
@@ -569,6 +588,16 @@ export const AgentCouncil: React.FC<AgentCouncilProps> = ({
                         {isApproved ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
                         <span>{isApproved ? '放行 (OK)' : '一票否決 (VETO)'}</span>
                       </span>
+                      {isApproved && (() => {
+                        const outcome = tradeOutcome(log);
+                        return outcome.opened ? (
+                          <span className="rounded-none bg-sky-500/20 border border-sky-500/40 px-1.5 py-0.5 font-mono text-[10px] font-bold text-sky-300">已開單</span>
+                        ) : (
+                          <span className="rounded-none bg-neutral-600/30 border border-neutral-500/40 px-1.5 py-0.5 font-mono text-[10px] text-neutral-300" title={outcome.reason}>
+                            {outcome.reason || '未開單'}
+                          </span>
+                        );
+                      })()}
                       {log.danger_type === 'honeypot' && (
                         <span className="rounded-none bg-rose-600 px-1 py-0.2 font-mono text-[9px] font-bold text-white">
                           HONEYPOT
