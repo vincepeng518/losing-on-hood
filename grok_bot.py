@@ -207,7 +207,11 @@ def fetch_trending():
 # ================= STATE =================
 def load():
     if os.path.exists(STATE):
-        s = json.load(open(STATE))
+        try:
+            s = json.load(open(STATE))
+        except (json.JSONDecodeError, Exception) as e:
+            print(f"[CRITICAL] state.json corrupted ({e}), returning empty state — all positions lost!")
+            s = {}
         s.setdefault("settled_txs", [])
         s.setdefault("pending_close", [])
         s.setdefault("thresholds", dict(THRESHOLDS))

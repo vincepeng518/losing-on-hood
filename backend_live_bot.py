@@ -159,7 +159,11 @@ def kline_chg(p, addr):
 # ================= 狀態 =================
 def load():
     if os.path.exists(STATE):
-        s = json.load(open(STATE))
+        try:
+            s = json.load(open(STATE))
+        except (json.JSONDecodeError, Exception) as e:
+            print(f"[CRITICAL] state.json corrupted ({e}), returning empty state — all positions lost!")
+            s = {}
         s.setdefault("settled_txs", [])   # 舊 state 遷移
         s.setdefault("pending_close", [])
         return s
@@ -550,7 +554,8 @@ def tick():
                 got_eth = float((srep or {}).get("output_amount","0") or 0)/ETH_DECIMALS if method == "swap" else 0
                 if got_eth and my_sell:
                     # 鏈上 ETH 實收 × ep = 純 USD，零單位風險
-                    settle(s, addr, p, my_sell, why, method, native_eth_out=got_eth, exit_ep=ep)
+                    # exit_ep 必須用賣出完成當刻的 ETH 價, 非 tick 起始價 (swap 可能耗時 30-180s, ep 已過時)
+                    settle(s, addr, p, my_sell, why, method, native_eth_out=got_eth, exit_ep=eth_price())
                     del s["positions"][addr]
                     print(f"  closed via {method}")
                 elif my_sell and settle(s, addr, p, my_sell, why, method):
@@ -840,7 +845,7 @@ def monitor_tick():
                 my_sell = latest_sell(addr, p["opened_ts"])
                 got_eth = float((srep or {}).get("output_amount","0") or 0)/ETH_DECIMALS if method == "swap" else 0
                 if got_eth and my_sell:
-                    settle(s, addr, p, my_sell, why, method, native_eth_out=got_eth, exit_ep=ep)
+                    settle(s, addr, p, my_sell, why, method, native_eth_out=got_eth, exit_ep=eth_price())
                     del s["positions"][addr]
                     print(f"  closed via {method}")
                 elif my_sell:
