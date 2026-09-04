@@ -1,7 +1,15 @@
 import { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 
-export function CopyAddress({ address, className = '' }: { address: string; className?: string }) {
+export function CopyAddress({ 
+  address, 
+  className = '', 
+  truncate = false 
+}: { 
+  address: string; 
+  className?: string; 
+  truncate?: boolean;
+}) {
   const [copied, setCopied] = useState(false);
   const onCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();  // 不觸發外層卡片展開
@@ -15,11 +23,19 @@ export function CopyAddress({ address, className = '' }: { address: string; clas
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
+
+  const display = truncate && address.length > 14
+    ? `${address.slice(0, 6)}...${address.slice(-4)}`
+    : address;
+
   return (
-    <button onClick={onCopy} title="點擊複製地址"
-      className={`inline-flex items-center gap-1 font-mono hover:text-white transition-colors cursor-pointer ${className}`}>
-      {address}
-      {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3 opacity-40" />}
+    <button 
+      onClick={onCopy} 
+      title={`點擊複製合約地址：${address}`}
+      className={`inline-flex items-center gap-1 font-mono hover:text-white transition-colors cursor-pointer ${className}`}
+    >
+      <span>{display}</span>
+      {copied ? <Check className="h-3 w-3 text-emerald-400 shrink-0" /> : <Copy className="h-3 w-3 opacity-40 shrink-0" />}
     </button>
   );
 }

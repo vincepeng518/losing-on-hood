@@ -136,7 +136,7 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
 
     const getSx = (i: number) => {
       const w = sWidth - sPad.left - sPad.right;
-      return sPad.left + (i / (prices.length - 1)) * w;
+      return sPad.left + (prices.length > 1 ? (i / (prices.length - 1)) * w : 0);
     };
     const getSy = (val: number) => {
       const h = sHeight - sPad.top - sPad.bottom;
@@ -983,7 +983,7 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
                       </div>
                       {pos.address ? (
                         <div className="mt-1 font-mono text-xs text-neutral-400">
-                          <CopyAddress address={pos.address} className="text-neutral-400" />
+                          <CopyAddress address={pos.address} className="text-neutral-400" truncate />
                         </div>
                       ) : (
                         <div className="mt-1 font-mono text-xs text-neutral-500">

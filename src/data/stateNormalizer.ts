@@ -33,17 +33,45 @@ export function normalizeAccountState(
         // 2026-09-04 定罪: bot 的 entry_ep = 開倉當下 ETH/USD 價(~2524), 不是幣價!
         // 幣價正確來源: entry_info_px (開倉當下 token_info 報價, bot L734 已存)
         const entry_price = Number(p.entry_price ?? p.entry_info_px) || 0;
-        // current_price: try standard field, then entry_info_px (likely live price from info API),
-        // then compute from entry_ep * (1 + last_chg/100), fallback to entry_price
-        const current_price = Number(p.current_price ?? p.entry_info_px ?? (entry_price > 0 && p.last_chg != null ? entry_price * (1 + Number(p.last_chg) / 100) : undefined)) || entry_price;
-        const held_min = Number(p.held_min) || 0;
-        const peak = Number(p.peak ?? p.peak_chg) || 0;
-        const current_pnl_pct = Number(p.current_pnl_pct) || 
-          (entry_price > 0 ? ((current_price - entry_price) / entry_price) * 100 : 0);
+        
+        // last_chg 在 python bot 為小數比率 (如 0.15 = +15%), 也可能為百分比 (>2)
+        const lastChgRatio = p.last_chg != null ? Number(p.last_chg) : undefined;
+        const normalizedChgDecimal = lastChgRatio != null 
+          ? (Math.abs(lastChgRatio) > 2 ? lastChgRatio / 100 : lastChgRatio)
+          : undefined;
+
+        // current_price: 依序優先取 current_price、entry_info_px、由 last_chg 推算，最後 fallback entry_price
+        const current_price = Number(
+          p.current_price ?? 
+          (entry_price > 0 && normalizedChgDecimal != null 
+            ? entry_price * (1 + normalizedChgDecimal) 
+            : p.entry_info_px)
+        ) || entry_price;
+
+        // held_min: python bot 存 opened_ts (unix 秒數)，若無 held_min 則以當前時間動態計算
+        const held_min = Number(p.held_min) || (
+          p.opened_ts ? Math.max(0, Math.round((Date.now() / 1000 - Number(p.opened_ts)) / 60)) : 0
+        );
+
+        // peak: peak_chg 在 python 為比率 (0.45 = +45%)，前端統一以百分比呈現 (45)
+        const peakRaw = p.peak ?? (p.peak_chg != null 
+          ? (Math.abs(Number(p.peak_chg)) <= 5 ? Number(p.peak_chg) * 100 : Number(p.peak_chg)) 
+          : undefined);
+        const peak = Number(peakRaw) || 0;
+
+        const current_pnl_pct = p.current_pnl_pct != null
+          ? Number(p.current_pnl_pct)
+          : (entry_price > 0 && current_price > 0
+              ? ((current_price - entry_price) / entry_price) * 100
+              : (normalizedChgDecimal != null ? normalizedChgDecimal * 100 : 0));
+
         const current_pnl_usd = Number(p.current_pnl_usd) || 
           (alloc_usd != null ? (alloc_usd * current_pnl_pct) / 100 : 0);
         const slip_pct = Number(p.slip_pct ?? p.slippage_pct) || 0;
         const gas_usd = Number(p.gas_usd) || 0;
+
+        // address: python bot 以地址作為 positions 字典 key，若 p.address 為空則取 key
+        const posAddress = p.address || (typeof key === 'string' && key.startsWith('0x') ? key : undefined);
 
         positions[key] = {
           symbol: String(p.symbol || key),
@@ -57,7 +85,7 @@ export function normalizeAccountState(
           slip_pct,
           gas_usd,
           id: p.id || key,
-          address: p.address,
+          address: posAddress,
           entry_eth: p.entry_eth != null ? Number(p.entry_eth) : undefined,
           entry_time: p.entry_time != null ? Number(p.entry_time) : undefined,
           meeting: Array.isArray(p.meeting) ? p.meeting : undefined,
@@ -87,12 +115,15 @@ export function normalizeAccountState(
           : [];
 
         const _allocRaw = Number(c.alloc_usd);
+        const pnl_usd = Number(c.pnl_usd ?? c.net_usd) || 0;
         const alloc_usd = !isNaN(_allocRaw) && _allocRaw > 0
           ? _allocRaw
-          // 舊紀錄無 alloc：由 pnl_pct 與 pnl_usd 反推 (alloc = pnl / pct×100)
-          : (Number(c.pnl_pct) && Number(c.pnl_usd) ? Math.abs(Number(c.pnl_usd) / (Number(c.pnl_pct) / 100)) : undefined);
-        const pnl_usd = Number(c.pnl_usd) || 0;
-        const peak = Number(c.peak ?? (c.peak_chg != null ? c.peak_chg * 100 : undefined)) || 0;
+          // 舊紀錄無 alloc：由 pnl_pct 與 pnl_usd (或 net_usd) 反推 (alloc = pnl / pct×100)
+          : (Number(c.pnl_pct) && pnl_usd ? Math.abs(pnl_usd / (Number(c.pnl_pct) / 100)) : undefined);
+        const peakRaw = c.peak ?? (c.peak_chg != null 
+          ? (Math.abs(Number(c.peak_chg)) <= 5 ? Number(c.peak_chg) * 100 : Number(c.peak_chg)) 
+          : undefined);
+        const peak = Number(peakRaw) || 0;
         const peakUsd = alloc_usd != null 
           ? (alloc_usd * peak) / 100 
           : (c.pnl_pct && pnl_usd ? Math.abs((pnl_usd / c.pnl_pct) * peak) : 0);
@@ -140,7 +171,7 @@ export function normalizeAccountState(
           reason: String(a.reason || ''),
           id: a.id || `log_${i}`,
           danger_type: a.danger_type,
-          address: a.address ? String(a.address) : undefined,
+          address: a.address ? String(a.address) : (typeof a.token === 'string' && a.token.startsWith('0x') ? a.token : undefined),
         });
       }
     }

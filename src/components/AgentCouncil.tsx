@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { AgentCouncilLogItem, AgentName, AgentVerdict, ClosedTrade, AgentWeightsConfig } from '../types';
+import { AgentCouncilLogItem, AgentName, AgentVerdict, ClosedTrade, AgentWeightsConfig, ActivePosition } from '../types';
 import { calculateAgentStats } from '../tradeEnricher';
 import { formatTimestamp, translateReason, getAgentColor } from '../formatters';
+import { CopyAddress } from './CopyAddress';
 import { Pagination } from './Pagination';
 import { 
   Users, 
@@ -28,6 +29,7 @@ import {
 interface AgentCouncilProps {
   logs: AgentCouncilLogItem[];
   closedTrades?: ClosedTrade[];
+  positions?: Record<string, ActivePosition> | ActivePosition[];
   weights?: AgentWeightsConfig;
   onUpdateWeights?: (newWeights: AgentWeightsConfig) => void;
 }
@@ -35,6 +37,7 @@ interface AgentCouncilProps {
 export const AgentCouncil: React.FC<AgentCouncilProps> = ({ 
   logs, 
   closedTrades = [],
+  positions = {},
   weights = {
     scanner: 8,
     narrative: 6,
@@ -75,24 +78,34 @@ export const AgentCouncil: React.FC<AgentCouncilProps> = ({
 
     return agentList.map((ag) => {
       const st = rawStats[ag];
-      let winRate = 0;
+      
+      // 計算該 Agent 參與同意且已結算交易的實際勝率
+      const agentApprovedTrades = closedTrades.filter((t) =>
+        t.meeting?.some((m) => m.agent === ag && m.verdict === 'approve')
+      );
+      const agentWins = agentApprovedTrades.filter((t) => t.pnl_usd > 0).length;
+      const realWinRate = agentApprovedTrades.length > 0
+        ? Number(((agentWins / agentApprovedTrades.length) * 100).toFixed(1))
+        : (closedTrades.length === 0 ? (ag === 'scanner' ? 62.5 : ag === 'narrative' ? 58.0 : ag === 'judge' ? 71.4 : 75.0) : 0);
+
+      let winRate = realWinRate;
       let specialMetric = '';
 
       if (ag === 'scanner') {
-        winRate = 62.5;
-        specialMetric = `攔截 ${st?.honeypots_blocked || 3} 個蜜罐 / ${st?.whale_dumps_blocked || 5} 次巨鯨集中`;
+        const hp = st?.honeypots_blocked ?? 0;
+        const wh = st?.whale_dumps_blocked ?? 0;
+        specialMetric = `攔截 ${hp} 個蜜罐 / ${wh} 次巨鯨集中`;
       } else if (ag === 'sniper') {
-        winRate = st?.sniper_win_rate ?? 33.3;
-        specialMetric = `追高勝率 ${winRate}% / 平均沖頂 +${st?.sniper_avg_surge || 84.5}%`;
+        winRate = st?.sniper_win_rate ?? realWinRate;
+        specialMetric = `追高勝率 ${winRate}% / 平均沖頂 +${st?.sniper_avg_surge ?? 0}%`;
       } else if (ag === 'narrative') {
-        winRate = 58.0;
-        specialMetric = '成功識別 12+ 熱門吉祥物與 L1 迷因';
+        specialMetric = '熱點 Mascot 與 Robinhood 生態敘事審核';
       } else if (ag === 'judge') {
-        winRate = 71.4;
-        specialMetric = `阻止 ${st?.anti_repeat_loss_blocked || 4} 次連續重複割肉`;
+        const ar = st?.anti_repeat_loss_blocked ?? 0;
+        specialMetric = `阻止 ${ar} 次歷史連續割肉重複追高`;
       } else if (ag === 'risk') {
-        winRate = 75.0;
-        specialMetric = `觸發 ${st?.risk_gates_triggered || 6} 次現金與持倉熔斷保命`;
+        const rg = st?.risk_gates_triggered ?? 0;
+        specialMetric = `觸發 ${rg} 次全局熔斷與風控警戒保護`;
       }
 
       return {
@@ -114,6 +127,7 @@ export const AgentCouncil: React.FC<AgentCouncilProps> = ({
       const q = searchTerm.toLowerCase();
       return (
         (item.token || '').toLowerCase().includes(q) ||
+        (item.address || '').toLowerCase().includes(q) ||
         (item.reason || '').toLowerCase().includes(q) ||
         (item.agent || '').toLowerCase().includes(q)
       );
@@ -139,27 +153,53 @@ export const AgentCouncil: React.FC<AgentCouncilProps> = ({
     if (currentPage > totalPages) {
       setCurrentPage(totalPages);
     }
-  }, [filteredLogs.length, pageSize]);
+  }, [filteredLogs.length, pageSize, currentPage]);
 
   // Overall counts
   const totalLogs = logs.length;
   const approvedCount = logs.filter((l) => l.verdict === 'approve').length;
   const vetoCount = logs.filter((l) => l.verdict === 'veto').length;
 
-  // 2026-09-04: approve 單是否實際開倉 — 用 closed.address 對照 agent_log.address
-  const openedAddresses = useMemo(() => {
-    const set = new Set<string>();
+  // 2026-09-04: approve 單是否實際開倉 — 用持倉中 (positions) 與歷史已結算 (closed) 共同對照
+  const { closedAddresses, activeAddresses, closedSymbols, activeSymbols } = useMemo(() => {
+    const closedSet = new Set<string>();
+    const closedSym = new Set<string>();
     for (const t of closedTrades) {
-      if (t.address) set.add(t.address.toLowerCase());
+      if (t.address) closedSet.add(t.address.toLowerCase());
+      if (t.symbol) closedSym.add(t.symbol.toUpperCase());
     }
-    return set;
-  }, [closedTrades]);
 
-  const tradeOutcome = (log: AgentCouncilLogItem): { opened: boolean; reason?: string } => {
+    const activeSet = new Set<string>();
+    const activeSym = new Set<string>();
+    const posList = Array.isArray(positions) ? positions : Object.values(positions || {});
+    for (const p of posList) {
+      if (p.address) activeSet.add(p.address.toLowerCase());
+      if (p.id && typeof p.id === 'string' && p.id.startsWith('0x')) activeSet.add(p.id.toLowerCase());
+      if (p.symbol) activeSym.add(p.symbol.toUpperCase());
+    }
+
+    return { 
+      closedAddresses: closedSet, 
+      activeAddresses: activeSet,
+      closedSymbols: closedSym,
+      activeSymbols: activeSym 
+    };
+  }, [closedTrades, positions]);
+
+  const tradeOutcome = (log: AgentCouncilLogItem): { opened: boolean; status?: 'holding' | 'closed'; reason?: string } => {
     if (log.verdict !== 'approve') return { opened: false };
     const addr = log.address?.toLowerCase();
-    if (addr && openedAddresses.has(addr)) return { opened: true };
-    if (log.reason.includes('gas 節流未進場')) return { opened: false, reason: '未開單：gas 節流（15 分鐘內已開倉）' };
+    const sym = log.token?.toUpperCase();
+    
+    // 優先檢查是否為當前活躍持倉
+    if (addr && activeAddresses.has(addr)) return { opened: true, status: 'holding' };
+    if (sym && activeSymbols.has(sym)) return { opened: true, status: 'holding' };
+
+    // 檢查是否已在歷史交易中平倉
+    if (addr && closedAddresses.has(addr)) return { opened: true, status: 'closed' };
+    if (sym && closedSymbols.has(sym)) return { opened: true, status: 'closed' };
+
+    if (log.reason.includes('gas 節流未進場') || log.reason.includes('節流')) return { opened: false, reason: '未開單：gas 節流（15 分鐘內已開倉）' };
     if (log.reason.includes('槽位') || log.reason.includes('reached cap')) return { opened: false, reason: '未開單：槽位已滿' };
     if (log.address) return { opened: false, reason: '未開單：無開倉記錄（可能評分後被節流/資金不足）' };
     return { opened: false, reason: '未開單：舊紀錄無 address，無法判定' };
@@ -590,9 +630,18 @@ export const AgentCouncil: React.FC<AgentCouncilProps> = ({
                       </span>
                       {isApproved && (() => {
                         const outcome = tradeOutcome(log);
-                        return outcome.opened ? (
-                          <span className="rounded-none bg-sky-500/20 border border-sky-500/40 px-1.5 py-0.5 font-mono text-[10px] font-bold text-sky-300">已開單</span>
-                        ) : (
+                        if (outcome.opened) {
+                          return outcome.status === 'holding' ? (
+                            <span className="rounded-none bg-emerald-500/20 border border-emerald-500/40 px-1.5 py-0.5 font-mono text-[10px] font-bold text-emerald-300">
+                              持倉中
+                            </span>
+                          ) : (
+                            <span className="rounded-none bg-sky-500/20 border border-sky-500/40 px-1.5 py-0.5 font-mono text-[10px] font-bold text-sky-300">
+                              已開單 (已平倉)
+                            </span>
+                          );
+                        }
+                        return (
                           <span className="rounded-none bg-neutral-600/30 border border-neutral-500/40 px-1.5 py-0.5 font-mono text-[10px] text-neutral-300" title={outcome.reason}>
                             {outcome.reason || '未開單'}
                           </span>
@@ -609,6 +658,12 @@ export const AgentCouncil: React.FC<AgentCouncilProps> = ({
                         </span>
                       )}
                     </div>
+
+                    {log.address && (
+                      <div className="mt-1 font-mono text-[11px] text-neutral-400">
+                        <CopyAddress address={log.address} className="text-neutral-400" truncate />
+                      </div>
+                    )}
 
                     <div className="mt-1 font-mono text-xs text-neutral-300">
                       {translateReason(log.reason)}

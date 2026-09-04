@@ -17,15 +17,28 @@ export function enrichClosedTrades(trades: ClosedTrade[]): ClosedTrade[] {
   });
 }
 
+function parseTradeTs(t: unknown): number {
+  if (typeof t === 'number') return t > 1e12 ? t : t * 1000;
+  if (typeof t === 'string') {
+    if (!isNaN(Number(t)) && !t.includes('-') && !t.includes('T')) {
+      const n = Number(t);
+      return n > 1e12 ? n : n * 1000;
+    }
+    const d = new Date(t);
+    return isNaN(d.getTime()) ? 0 : d.getTime();
+  }
+  return 0;
+}
+
 export function buildEquityCurve(
   startEquity: number,
   closedTrades: ClosedTrade[],
   simTrailingTrigger: number = 30, // Trigger trailing stop at peak >= +30%
   simTrailingLock: number = 65     // Lock in 65% of peak profit
 ): EquityPoint[] {
-  // Sort chronologically
+  // Sort chronologically using unified ts parsing
   const sorted = [...closedTrades].sort(
-    (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
+    (a, b) => parseTradeTs(a.time) - parseTradeTs(b.time)
   );
 
   let currentEq = startEquity;
@@ -95,22 +108,38 @@ export function calculateExitReasonBreakdown(trades: ClosedTrade[]): ExitReasonB
   };
 
   trades.forEach((t) => {
-    const method = t.method || '';
+    const method = (t.method || '').toLowerCase();
+    const reason = (t.exit_reason || '').toLowerCase();
     const loss = t.pnl_usd < 0 ? Math.abs(t.pnl_usd) : 0;
 
-    if (method === 'flow_collapse' || t.exit_reason.includes('flow collapse')) {
+    if (method === 'flow_collapse' || reason.includes('flow collapse') || reason.includes('買盤崩落')) {
       counts.flow_collapse.count += 1;
       counts.flow_collapse.loss += loss;
-    } else if (method === 'fast_dump' || t.exit_reason.includes('fast dump')) {
+    } else if (method === 'fast_dump' || reason.includes('fast dump') || reason.includes('急殺')) {
       counts.fast_dump.count += 1;
       counts.fast_dump.loss += loss;
-    } else if (method === 'giveback' || t.exit_reason.includes('giveback')) {
+    } else if (
+      method === 'giveback' || 
+      reason.includes('giveback') || 
+      reason.includes('浮盈回撤') || 
+      reason.includes('獲利回吐') ||
+      reason.includes('loss exit') ||
+      reason.includes('reversal loss') ||
+      reason.includes('保底')
+    ) {
       counts.giveback.count += 1;
       counts.giveback.loss += loss;
-    } else if (method === 'downtrend' || t.exit_reason.includes('momentum') || t.exit_reason.includes('downtrend')) {
+    } else if (method === 'downtrend' || reason.includes('momentum') || reason.includes('downtrend') || reason.includes('陰跌')) {
       counts.downtrend.count += 1;
       counts.downtrend.loss += loss;
-    } else if (method === 'condition_filled' || method === 'take_profit' || t.exit_reason.includes('condition')) {
+    } else if (
+      method === 'condition_filled' || 
+      method === 'take_profit' || 
+      method === 'cond' || 
+      reason.includes('condition') || 
+      reason.includes('tp +') || 
+      reason.includes('條件單')
+    ) {
       counts.condition_filled.count += 1;
       counts.condition_filled.loss += loss;
     } else {
@@ -218,8 +247,8 @@ export function calculateAgentStats(
         const totalSurge = sniperApprovedTrades.reduce((acc, t) => acc + (t.peak || 0), 0);
         sniperAvgSurge = Number((totalSurge / sniperApprovedTrades.length).toFixed(1));
       } else {
-        sniperWinRate = 33.3; // fallback benchmark
-        sniperAvgSurge = 84.5;
+        sniperWinRate = trades.length === 0 ? 33.3 : 0; // fallback benchmark only if no trades
+        sniperAvgSurge = trades.length === 0 ? 84.5 : 0;
       }
     }
 

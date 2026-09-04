@@ -347,6 +347,7 @@ export const App: React.FC = () => {
           <AgentCouncil 
             logs={currentState.agent_log || []} 
             closedTrades={currentState.closed || []}
+            positions={currentState.positions || {}}
             weights={agentWeights}
             onUpdateWeights={setAgentWeights}
           />

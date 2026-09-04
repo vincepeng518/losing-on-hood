@@ -82,12 +82,13 @@ export const TradesAudit: React.FC<TradesAuditProps> = ({ trades, initialFilter 
       if (!searchTerm) return true;
       const q = searchTerm.toLowerCase();
       const matchSymbol = (t.symbol || '').toLowerCase().includes(q);
+      const matchAddress = (t.address || '').toLowerCase().includes(q);
       const matchReason = (t.exit_reason || '').toLowerCase().includes(q);
       const matchMethod = String(t.method || '').toLowerCase().includes(q);
       const matchAgent = t.meeting?.some(
         (m) => (m.agent || '').toLowerCase().includes(q) || (m.reason || '').toLowerCase().includes(q)
       );
-      return matchSymbol || matchReason || matchMethod || matchAgent;
+      return matchSymbol || matchAddress || matchReason || matchMethod || matchAgent;
     }).sort((a, b) => tsNum(b.time) - tsNum(a.time)); // 由新到舊（time 可能是 ISO 字串+混雜時區）
   }, [trades, activeFilter, searchTerm]);
 

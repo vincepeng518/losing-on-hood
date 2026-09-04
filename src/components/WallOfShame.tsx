@@ -37,10 +37,18 @@ export const WallOfShame: React.FC<WallOfShameProps> = ({ trades, onGoToSimulato
       .sort((a, b) => b.evaporatedUsd - a.evaporatedUsd);
   }, [trades]);
 
-  // Reset page when trades list or pageSize changes
+  // Reset page when pageSize changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [trades, pageSize]);
+  }, [pageSize]);
+
+  // Clamp currentPage when shameCandidates shrink (prevents empty-page drift)
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(shameCandidates.length / pageSize));
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [shameCandidates.length, pageSize, currentPage]);
 
   const paginatedCandidates = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
