@@ -65,9 +65,19 @@ def eth_price():
 _EP_CACHE = None
 _EP_CACHE = eth_price() or 2400.0
 
+_INFO_CACHE = {}
 def token_info(addr):
-    try: return gm("token", "info", "--chain", CHAIN, "--address", addr)
-    except Exception: return None
+    hit = _INFO_CACHE.get(addr)
+    if hit and time.time() - hit[0] < 600:  # 10 分 TTL — 掃描池擴大後防爆量
+        return hit[1]
+    try:
+        d = gm("token", "info", "--chain", CHAIN, "--address", addr)
+        _INFO_CACHE[addr] = (time.time(), d)
+        if len(_INFO_CACHE) > 500:  # 防爆檔: 砍最舊一半
+            for k in list(_INFO_CACHE)[:250]: _INFO_CACHE.pop(k, None)
+        return d
+    except Exception:
+        return None
 
 def token_balance_raw(addr):
     try:
@@ -248,12 +258,18 @@ def entry_score(t, info, toks):
     holders = t.get("holder_count") or 0
     top10 = t.get("top_10_holder_rate")
     lp = t.get("launchpad") or "?"
-    if liq < 15000: return 0, "liq<15k", {}
+    if liq < 12000: return 0, "liq<12k", {}  # 2026-09-04: 15k→12k (ROBINCAT +42.62 liq 15.2k 險被擋; liq 非贏虧分界, 放寬交給評分篩)
     if mc < 30000 or mc > 3_000_000: return 0, "mc band", {}
     if holders < 100: return 0, "holders<100", {}
     if top10 is not None and top10 > 0.35: return 0, "top10 concentrated", {}
     if t.get("is_honeypot"): return 0, "honeypot", {}
-    if t.get("creator_close"): return 0, "dev sold", {}
+    # dev 部分賣出≠rug (今日實證: dev sold veto 9 個中 3 個 survive); 只擋全賣
+    # 但 KUMO 實證: <15min 新生幣的 creator_token_status 會抖動(close→hold), 幣齡<15min 不套用
+    _cts = (info or {}).get("creation_timestamp") or (t.get("dev") or {}).get("fund_from_ts")
+    age_min = (time.time() - _cts) / 60 if _cts else 999
+    if age_min >= 15:
+        if t.get("creator_close") or (t.get("dev") or {}).get("creator_token_status") == "creator_close":
+            return 0, "dev fully sold", {}
     if (t.get("bundler_rate") or 0) > 0.3: return 0, "bundled launch", {}
     if info.get("locked_ratio") == 0 and mc > 500_000: return 0, "big+unlocked", {}
     if launchpad_heat(toks, lp) >= 2: return 0, f"capital drain on {lp}", {}
@@ -317,7 +333,9 @@ def judge_exit(p, info, addr):
         if (b1 + s1 >= 8 and s1 > b1 * 2) or (b5 + s5 >= 10 and s5 > b5 * 1.8):
             return True, f"flow collapse s1={s1}/b1={b1} s5={s5}/b5={b5} {chg*100:+.0f}%", peak, chg
     # 2) trend dead: -5% 持倉 30 分 / -8% 持倉 15 分就出（快速下跌不用等 30 分）
-    if (chg < -0.05 and held_min > 30) or (chg < -0.08 and held_min > 15):
+    # 2) trend dead: -5% 持倉 20 分 / -8% 持倉 15 分就出（快速下跌不用等 20 分）
+    #    (2026-09-04 收緊: 中分群 53m 溫水倉是最大失血源, 30m→20m)
+    if (chg < -0.05 and held_min > 20) or (chg < -0.08 and held_min > 15):
         return True, f"downtrend {chg*100:+.0f}% {held_min:.0f}min", peak, chg
     # 3) giveback: peak≥15% 回吐出場。高 peak 用更緊的比例（FGL 教訓: 583% 腰斬線=291% 太鬆, 吐一半才觸發）
     if peak >= 0.15:
@@ -325,13 +343,19 @@ def judge_exit(p, info, addr):
         if chg < peak * ratio:
             if chg < 0:
                 # 漲過又跌破進場價 → 真實死因是反轉虧損, 不是獲利回吐
-                return True, f"reversal loss (peak +{peak*100:.0f}% 未鎖利, now {chg*100:+.0f}%, 反轉跌破進場價)", peak, chg
-            return True, f"giveback (peak +{peak*100:.0f}%, now {chg*100:+.0f}%, line +{peak*ratio*100:.0f}%)", peak, chg
+                # 死因歸因: 反轉跌破進場價是結果, 機制原因是鎖利保底沒擋住
+                mech = ("無鎖利機制啟動" if peak < 0.15 else
+                        ("trail lock 未啟動(peak<30%), 僅 giveback 50% 保底被穿" if peak < 0.30 else
+                         "trail lock 65% 保底被穿, 反轉快於 1m tick"))
+                return True, f"loss exit — {mech} (peak +{peak*100:.0f}%, now {chg*100:+.0f}%)", peak, chg
+            # 出場理由=機制觸發, 不寫「利潤回吐」(那是結果描述)
+            return True, f"浮盈回撤出場 (peak +{peak*100:.0f}%, 現 +{chg*100:.0f}%, 跌破保底 +{peak*ratio*100:.0f}%)", peak, chg
     # 4) stale: 12h 無波動 → 縮短到 4h; 另加 45 分內無表現直接換標的
+    #    (2026-09-04: no momentum 30→25m 收緊, 溫水倉早斬; 歷史命中 3 筆全虧 -16.5, 無誤殺)
     if held_min > 720 and abs(chg) < 0.03:
         return True, f"stale 12h {chg*100:+.0f}%", peak, chg
-    if held_min > 30 and chg < 0.02 and peak < 0.10:
-        return True, f"no momentum 30min ({chg*100:+.0f}%, peak +{peak*100:.0f}%)", peak, chg
+    if held_min > 25 and chg < 0.02 and peak < 0.10:
+        return True, f"no momentum 25min ({chg*100:+.0f}%, peak +{peak*100:.0f}%)", peak, chg
     if held_min > 45 and chg < 0.02 and peak < 0.15:
         return True, f"no momentum 45min ({chg*100:+.0f}%, peak +{peak*100:.0f}%)", peak, chg
     # 5) disaster
@@ -489,7 +513,15 @@ def tick():
     gas = gas_eth() or 0
     available = gas - MIN_GAS_ETH
     if available > 0 and len(s["positions"]) < MAX_OPEN:
+        # 多時間級別掃描: 1m(出生脈衝)15 + 5m(即時熱度)30 + 1h(主升段)20 + 6h(中期趨勢)10
         toks = fetch_trending()
+        have = {t.get("address") for t in toks}
+        for iv, n in (("1m", 15), ("1h", 20), ("6h", 10)):
+            try:
+                extra = fetch_trending(iv)
+                toks += [t for t in extra[:n] if t.get("address") not in have and not have.add(t.get("address"))]
+            except Exception:
+                pass  # 單級別失敗不阻掃描
         # gas 節流: 只擋開倉不擋掃描（agent_log 要累積樣本）；開倉限 30 分/筆
         open_ts = [p.get("opened_ts") or 0 for p in s["positions"].values()]
         last_buy_ts = max(open_ts) if open_ts else (s["closed"][-1].get("_buy_ts", 0) if s["closed"] else 0)
@@ -517,7 +549,12 @@ def tick():
             if rej or score < 6:  # 多討論少開倉: 門檻 5→6 (用戶指示, 樣本累積中)
                 s["seen"][addr] = time.time()  # veto/低分: 審過即記 seen, 48h 冷卻
                 continue
-            if last_buy_ts > time.time() - 900: break  # gas 節流 30→15 分 (用戶指示放寬): approve 幣不記 seen
+            if last_buy_ts > time.time() - 900:
+                # 2026-09-04 優化觀察: approve 因節流未進場 — 記 log 供 30 筆後量化 (候選B)
+                s.setdefault("agent_log", []).append({"token": sym0, "ts": time.time(), "address": addr, "agent": "SCANNER",
+                    "verdict": "hold", "score": score, "reason": f"score={score} approve 但 gas 節流未進場"})
+                if len(s["agent_log"]) > 400: s["agent_log"] = s["agent_log"][-400:]
+                break  # gas 節流 30→15 分 (用戶指示放寬): approve 幣不記 seen
             alloc_usd = min(PER_TRADE, s["equity_usd"] * 0.5, available * ep * 0.90)  # score 加碼移除: 未驗證, 50筆後再評
             if alloc_usd < 2.5: break
             alloc_eth = alloc_usd / ep
@@ -534,10 +571,33 @@ def tick():
                 closes = [float(b["close"]) for b in recent]
                 drop5 = closes[-1]/closes[0] - 1
                 red = sum(1 for i in range(1,len(closes)) if closes[i] < closes[i-1])
-                if drop5 < -0.06 or (len(recent) >= 4 and red >= 4):
-                    print(f"SKIP {sym}: 進場當下動能壞 (5m {drop5*100:+.1f}%, 紅K {red}/4)")
-                    s["seen"][addr] = time.time()
-                    continue
+                red_skip = (drop5 < -0.06 or (len(recent) >= 4 and red >= 4))
+                pump_skip = drop5 > 0.50  # 追暴拉 (MARI 教訓)
+                if red_skip or pump_skip:
+                    # GRASS 實證: 5m+73% + smb=7 → +757%。暴拉但 smart 仍加碼 = 下半場, 允許
+                    smb_gate = smart_buy_addrs().get(addr.lower(), 0) >= 2
+                    if red_skip or (pump_skip and not smb_gate):
+                        if red_skip:
+                            print(f"SKIP {sym}: 進場當下動能壞 (5m {drop5*100:+.1f}%, 紅K {red}/4)")
+                        else:
+                            print(f"SKIP {sym}: 追高防護 (5m +{drop5*100:.0f}%, smb={smart_buy_addrs().get(addr.lower(),0)}<2)")
+                        s["seen"][addr] = time.time()
+                        continue
+                # 高位幣需 smart 錢包當下仍在買 (今日實證: 前1h>100% 的 31 幣中位仍 +52% 但分化大,
+                # MARI smb=0 進場死 -81.7%; smb>=2 = 近30分 smart 還在加碼 = 下半場訊號)
+                _t = t  # trending token dict
+                pump1h = 0
+                ks1h = klines_res(t["address"], "15m")
+                if ks1h:
+                    k1h = [k for k in ks1h if time.time() - 3900 <= k["time"]//1000 <= time.time()]
+                    if len(k1h) >= 2 and float(k1h[0]["open"]) > 0:
+                        pump1h = (float(k1h[-1]["close"]) / float(k1h[0]["open"]) - 1) * 100
+                if pump1h and pump1h > 100:
+                    smb_now = smart_buy_addrs().get((t.get("address") or "").lower(), 0)
+                    if smb_now < 2:
+                        print(f"SKIP {sym}: 高位無 smart 跟隨 (前1h +{pump1h:.0f}%, smb={smb_now})")
+                        s["seen"][addr] = time.time()
+                        continue
             print(f"BUY {sym} ${alloc_usd:.2f} score={score}")
             ok, rep, oid = swap_and_confirm(NATIVE, t["address"], amount_eth=alloc_eth,
                                             condition_orders=conditions)
@@ -737,8 +797,8 @@ def gas_eth():
     except Exception:
         return 0.0
 
-def fetch_trending():
-    d = gm("market", "trending", "--chain", CHAIN, "--interval", "5m")
+def fetch_trending(interval="5m"):
+    d = gm("market", "trending", "--chain", CHAIN, "--interval", interval, "--limit", "100")
     if d.get("code") != 0: raise RuntimeError(f"trending code={d.get('code')}")
     return d["data"]["rank"]
 
