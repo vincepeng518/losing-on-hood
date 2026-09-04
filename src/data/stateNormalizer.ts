@@ -90,7 +90,7 @@ export function normalizeAccountState(
           // 舊紀錄無 alloc：由 pnl_pct 與 pnl_usd 反推 (alloc = pnl / pct×100)
           : (Number(c.pnl_pct) && Number(c.pnl_usd) ? Math.abs(Number(c.pnl_usd) / (Number(c.pnl_pct) / 100)) : undefined);
         const pnl_usd = Number(c.pnl_usd) || 0;
-        const peak = Number(c.peak) || 0;
+        const peak = Number(c.peak ?? (c.peak_chg != null ? c.peak_chg * 100 : undefined)) || 0;
         const peakUsd = alloc_usd != null 
           ? (alloc_usd * peak) / 100 
           : (c.pnl_pct && pnl_usd ? Math.abs((pnl_usd / c.pnl_pct) * peak) : 0);
