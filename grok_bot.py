@@ -23,7 +23,7 @@ LOG = "/root/rh_live/trades.csv"
 LOCK = "/root/rh_live/bot.lock"
 REVIEW_FILE = "/root/rh_live/review_history.json"
 CHAIN = "robinhood"
-WALLET = "0xYOUR_WALLET_ADDRESS"
+WALLET = "0x4d4e93fc85133b372ea6d360e0ba57293f6ea801"
 NATIVE = "0x0000000000000000000000000000000000000000"
 START_EQUITY = 5.07
 PER_TRADE = 5.0
@@ -298,7 +298,9 @@ class Scanner:
         
         score = 0
         tags = (t.get("wallet_tags_stat") or {})
-        smart = tags.get("smart_wallets") or t.get("smart_degen_count") or 0
+        smart = tags.get("smart_wallets")
+        if smart is None:
+            smart = t.get("smart_degen_count") or 0
         if smart >= 50: score += 3
         elif smart >= 25: score += 2
         elif smart >= 10: score += 1
@@ -556,8 +558,11 @@ class Judge:
             ratio = 0.7 if peak > 3.0 else (0.6 if peak > 1.0 else 0.5)
             if chg < peak * ratio:
                 if chg < 0:
-                    return True, f"reversal loss (peak +{peak*100:.0f}% 未鎖利, now {chg*100:+.0f}%, 反轉跌破進場價)", peak, chg
-                return True, f"giveback (peak +{peak*100:.0f}%, now {chg*100:+.0f}%)", peak, chg
+                    mech = ("無鎖利機制啟動" if peak < 0.15 else
+                            ("trail lock 未啟動(peak<30%), 僅 giveback 50% 保底被穿" if peak < 0.30 else
+                             "trail lock 65% 保底被穿, 反轉快於 1m tick"))
+                    return True, f"loss exit — {mech} (peak +{peak*100:.0f}%, now {chg*100:+.0f}%)", peak, chg
+                return True, f"浮盈回撤出場 (peak +{peak*100:.0f}%, 現 +{chg*100:.0f}%, 跌破保底)", peak, chg
         # stale / no momentum
         if held_min > 720 and abs(chg) < 0.03:
             return True, f"stale 12h {chg*100:+.0f}%", peak, chg

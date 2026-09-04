@@ -316,7 +316,9 @@ def entry_score(t, info, toks):
     if launchpad_heat(toks, lp) >= 2: return 0, f"capital drain on {lp}", {}
     score = 0
     tags = (info.get("wallet_tags_stat") or {})
-    smart = tags.get("smart_wallets") or t.get("smart_degen_count") or 0
+    smart = tags.get("smart_wallets")
+    if smart is None:
+        smart = t.get("smart_degen_count") or 0
     if smart >= 50: score += 3
     elif smart >= 25: score += 2
     elif smart >= 10: score += 1
