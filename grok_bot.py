@@ -21,7 +21,6 @@ from typing import Optional
 STATE = "/root/rh_live/state.json"
 LOG = "/root/rh_live/trades.csv"
 LOCK = "/root/rh_live/bot.lock"
-REVIEW_FILE = "/root/rh_live/review_history.json"
 CHAIN = "robinhood"
 WALLET = "0xYOUR_WALLET_ADDRESS"
 NATIVE = "0x0000000000000000000000000000000000000000"
@@ -1165,10 +1164,13 @@ def review():
     # gas-heavy losses -> slow down
     gas_total = sum(float(c.get("gas_usd") or 0) for c in closed)
     pnl_total = sum(float(c.get("pnl_usd") or 0) for c in closed)
+    global HOUR_BETWEEN_BUYS
     if gas_total > abs(pnl_total) * 0.5 and pnl_total < 0:
-        global HOUR_BETWEEN_BUYS
         HOUR_BETWEEN_BUYS = 2
         changed.append("HOUR_BETWEEN_BUYS -> 2 (gas friction dominant)")
+    elif HOUR_BETWEEN_BUYS == 2:
+        HOUR_BETWEEN_BUYS = 1
+        changed.append("HOUR_BETWEEN_BUYS -> 1 (gas tolerable again)")
     
     if changed:
         s["thresholds"] = th
