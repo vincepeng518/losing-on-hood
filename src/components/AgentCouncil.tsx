@@ -621,7 +621,21 @@ export const AgentCouncil: React.FC<AgentCouncilProps> = ({
 
                   <div>
                     <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                      <span className="font-mono text-sm font-bold text-white">${log.token}</span>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (!log.address) return;
+                          try { await navigator.clipboard.writeText(log.address); } catch {}
+                          const btn = e.currentTarget;
+                          const orig = btn.title;
+                          btn.title = '已複製地址 ✓';
+                          setTimeout(() => { btn.title = orig; }, 1200);
+                        }}
+                        title={log.address ? `點擊複製代幣地址：${log.address}` : '無地址'}
+                        className={`font-mono text-sm font-bold text-white hover:text-emerald-300 transition-colors ${log.address ? 'cursor-pointer' : 'cursor-default'}`}
+                      >
+                        ${log.token}
+                      </button>
                       <span className={`flex items-center gap-0.5 rounded-none px-1.5 py-0.5 font-mono text-[10px] font-bold ${
                         isApproved ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'
                       }`}>
