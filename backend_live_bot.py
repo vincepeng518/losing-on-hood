@@ -188,6 +188,22 @@ def prune_seen(s):
     s["seen"] = {k: v for k, v in s["seen"].items()
                  if v == 1 or (isinstance(v, (int, float)) and now - v < SEEN_TTL)}
 
+def prune_settled_txs(s):
+    """(#5) settled_txs 防無限增長: 保留最近 1000 筆，去重"""
+    txs = s.get("settled_txs", [])
+    if len(txs) <= 1000:
+        return
+    # 去重 + 保留最近 1000 筆
+    seen = set()
+    deduped = []
+    for tx in reversed(txs):
+        if tx not in seen:
+            seen.add(tx)
+            deduped.append(tx)
+        if len(deduped) >= 1000:
+            break
+    s["settled_txs"] = list(reversed(deduped))
+
 # ================= 帳務: 唯一路徑 settle (#1) =================
 def settle(s, addr, p, sell_act, why, method, native_eth_out=None):
     """平倉記帳唯一入口。回傳 True=已入帳。
@@ -482,6 +498,7 @@ def snapshot(s, acts_map, strat_open_ids):
 def tick():
     s = load()
     prune_seen(s)
+    prune_settled_txs(s)
     ep = eth_price()
     acts_map = fetch_activities_map(fetch_activity())
     strat_open_ids = strategy_open_ids_all()
@@ -540,7 +557,18 @@ def tick():
                          "opened_ts": p.get("opened_ts")})
                     del s["positions"][addr]
             else:
-                print("  SELL FAILED — retry next tick")
+                p["close_retries"] = p.get("close_retries", 0) + 1
+                if p["close_retries"] >= 5:
+                    print(f"  [ALERT] {p['symbol']} 賣出失敗 {p['close_retries']} 次，強制標記為 pending_close 待人工確認")
+                    s.setdefault("pending_close", []).append(
+                        {"address": addr, "symbol": p["symbol"], "method": method, "since": time.time(),
+                         "entry_usd": p.get("entry_usd") or p.get("alloc_usd"),
+                         "entry_quote_qty": p.get("entry_quote_qty"),
+                         "gas_usd": p.get("gas_usd"),
+                         "opened_ts": p.get("opened_ts")})
+                    del s["positions"][addr]
+                else:
+                    print(f"  SELL FAILED ({p['close_retries']}/5) — retry next tick")
 
     # ---- entries ----
     gas = gas_eth() or 0
@@ -757,6 +785,7 @@ def reduce_position(s, addr, p, sells):
 
 def monitor_tick():
     s = load()
+    prune_settled_txs(s)
     if not s["positions"] and not s.get("pending_close"):
         return
     acts_map = fetch_activities_map(fetch_activity())
@@ -815,7 +844,18 @@ def monitor_tick():
                          "opened_ts": p.get("opened_ts")})
                     del s["positions"][addr]
             else:
-                print("  SELL FAILED — retry next minute")
+                p["close_retries"] = p.get("close_retries", 0) + 1
+                if p["close_retries"] >= 5:
+                    print(f"  [ALERT] {p['symbol']} 賣出失敗 {p['close_retries']} 次，強制 pending_close")
+                    s.setdefault("pending_close", []).append(
+                        {"address": addr, "symbol": p["symbol"], "method": method, "since": time.time(),
+                         "entry_usd": p.get("entry_usd") or p.get("alloc_usd"),
+                         "entry_quote_qty": p.get("entry_quote_qty"),
+                         "gas_usd": p.get("gas_usd"),
+                         "opened_ts": p.get("opened_ts")})
+                    del s["positions"][addr]
+                else:
+                    print(f"  SELL FAILED ({p['close_retries']}/5) — retry next minute")
     # 孤兒幣偵測: 錢包有 meme 幣餘額但 state 無倉 = 帳務斷裂, 告警
     try:
         d = gm("portfolio", "token-balance", "--chain", CHAIN, "--wallet", WALLET)
