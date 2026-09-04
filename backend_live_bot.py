@@ -205,10 +205,10 @@ def prune_settled_txs(s):
     s["settled_txs"] = list(reversed(deduped))
 
 # ================= 帳務: 唯一路徑 settle (#1) =================
-def settle(s, addr, p, sell_act, why, method, native_eth_out=None):
+def settle(s, addr, p, sell_act, why, method, native_eth_out=None, exit_ep=None):
     """平倉記帳唯一入口。回傳 True=已入帳。
     出場 USD 三級（單位安全降序）:
-      1. native_eth_out: AI 主動賣走 NATIVE → 鏈上實收 ETH × ep（零單位風險）
+      1. native_eth_out: AI 主動賣走 NATIVE → 鏈上實收 ETH × ep（零單位風險, exit_ep 優先）
       2. 比例法: alloc × (收到quote ÷ 付出quote) — 同源同單位相除
       3. activity buy_cost_usd — 最後保底（虛高 ~8.6%, 只在無資料時用）
     gas: 買入 p.gas_usd + 賣出 sell_act.gas_usd"""
@@ -217,7 +217,7 @@ def settle(s, addr, p, sell_act, why, method, native_eth_out=None):
         return True  # (#5) 同 tx 不重複記
     entry_usd = p.get("alloc_usd") or 0
     if native_eth_out:
-        exit_usd = native_eth_out * eth_price()
+        exit_usd = native_eth_out * (exit_ep or eth_price())
     elif p.get("alloc_usd") and p.get("entry_quote_qty"):
         # 比例法: 收到 quote / 付出 quote，兩者同為 GMGN 扣費後近似值，同源相除單位消掉
         out_qty = float(sell_act.get("quote_amount") or 0)
@@ -550,7 +550,7 @@ def tick():
                 got_eth = float((srep or {}).get("output_amount","0") or 0)/ETH_DECIMALS if method == "swap" else 0
                 if got_eth and my_sell:
                     # 鏈上 ETH 實收 × ep = 純 USD，零單位風險
-                    settle(s, addr, p, my_sell, why, method, native_eth_out=got_eth)
+                    settle(s, addr, p, my_sell, why, method, native_eth_out=got_eth, exit_ep=ep)
                     del s["positions"][addr]
                     print(f"  closed via {method}")
                 elif my_sell and settle(s, addr, p, my_sell, why, method):
@@ -799,6 +799,7 @@ def reduce_position(s, addr, p, sells):
 def monitor_tick():
     s = load()
     prune_settled_txs(s)
+    ep = eth_price()
     if not s["positions"] and not s.get("pending_close"):
         return
     acts_map = fetch_activities_map(fetch_activity())
@@ -839,7 +840,7 @@ def monitor_tick():
                 my_sell = latest_sell(addr, p["opened_ts"])
                 got_eth = float((srep or {}).get("output_amount","0") or 0)/ETH_DECIMALS if method == "swap" else 0
                 if got_eth and my_sell:
-                    settle(s, addr, p, my_sell, why, method, native_eth_out=got_eth)
+                    settle(s, addr, p, my_sell, why, method, native_eth_out=got_eth, exit_ep=ep)
                     del s["positions"][addr]
                     print(f"  closed via {method}")
                 elif my_sell:
