@@ -30,10 +30,12 @@ export function normalizeAccountState(
         const alloc_usd = p.alloc_usd != null && !isNaN(Number(p.alloc_usd))
           ? Number(p.alloc_usd)
           : undefined;
-        const entry_price = Number(p.entry_price) || 0;
-        const current_price = Number(p.current_price) || entry_price;
+        const entry_price = Number(p.entry_price ?? p.entry_ep) || 0;
+        // current_price: try standard field, then entry_info_px (likely live price from info API),
+        // then compute from entry_ep * (1 + last_chg/100), fallback to entry_price
+        const current_price = Number(p.current_price ?? p.entry_info_px ?? (entry_price > 0 && p.last_chg != null ? entry_price * (1 + Number(p.last_chg) / 100) : undefined)) || entry_price;
         const held_min = Number(p.held_min) || 0;
-        const peak = Number(p.peak) || 0;
+        const peak = Number(p.peak ?? p.peak_chg) || 0;
         const current_pnl_pct = Number(p.current_pnl_pct) || 
           (entry_price > 0 ? ((current_price - entry_price) / entry_price) * 100 : 0);
         const current_pnl_usd = Number(p.current_pnl_usd) || 
