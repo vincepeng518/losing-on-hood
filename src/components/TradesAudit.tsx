@@ -96,6 +96,14 @@ export const TradesAudit: React.FC<TradesAuditProps> = ({ trades, initialFilter 
     return filteredTrades.slice(start, start + pageSize);
   }, [filteredTrades, currentPage, pageSize]);
 
+  // Clamp currentPage when filtered results shrink (prevents empty-page drift)
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredTrades.length / pageSize));
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [filteredTrades.length, pageSize]);
+
   return (
     <div className="space-y-6">
       {/* Top Search, Filter & Action Bar */}

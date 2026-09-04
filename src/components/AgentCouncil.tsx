@@ -133,6 +133,14 @@ export const AgentCouncil: React.FC<AgentCouncilProps> = ({
     return filteredLogs.slice(start, start + pageSize);
   }, [filteredLogs, currentPage, pageSize]);
 
+  // Clamp currentPage when filtered results shrink (prevents empty-page drift)
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredLogs.length / pageSize));
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [filteredLogs.length, pageSize]);
+
   // Overall counts
   const totalLogs = logs.length;
   const approvedCount = logs.filter((l) => l.verdict === 'approve').length;
