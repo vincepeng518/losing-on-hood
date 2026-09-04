@@ -84,9 +84,26 @@ export const AgentCouncil: React.FC<AgentCouncilProps> = ({
         t.meeting?.some((m) => m.agent === ag && m.verdict === 'approve')
       );
       const agentWins = agentApprovedTrades.filter((t) => t.pnl_usd > 0).length;
-      const realWinRate = agentApprovedTrades.length > 0
+      let realWinRate = agentApprovedTrades.length > 0
         ? Number(((agentWins / agentApprovedTrades.length) * 100).toFixed(1))
         : (closedTrades.length === 0 ? (ag === 'scanner' ? 62.5 : ag === 'narrative' ? 58.0 : ag === 'judge' ? 71.4 : 75.0) : 0);
+
+      // 2026-09-04: live 模式無 5-agent 會議紀錄 (closed 無 meeting 欄) —
+      // SCANNER 勝率改用 agent_log approve × closed.address 對照實算；其他 agent 無資料標 -1 (UI 顯示 N/A)
+      const isLiveMode = closedTrades.some((t) => !t.meeting) && logs.every((l) => (l.agent || '').toLowerCase() === 'scanner');
+      if (isLiveMode) {
+        if (ag === 'scanner') {
+          const openedSet = new Set(closedTrades.map((t) => (t.address || '').toLowerCase()).filter(Boolean));
+          const settled = logs.filter((l) => l.verdict === 'approve' && l.address && openedSet.has(l.address.toLowerCase()));
+          const wins = settled.filter((l) => {
+            const c = closedTrades.find((t) => (t.address || '').toLowerCase() === l.address!.toLowerCase());
+            return c ? (Number(c.pnl_usd) || 0) > 0 : false;
+          }).length;
+          realWinRate = settled.length > 0 ? Number(((wins / settled.length) * 100).toFixed(1)) : 0;
+        } else {
+          realWinRate = -1;
+        }
+      }
 
       let winRate = realWinRate;
       let specialMetric = '';
@@ -301,8 +318,8 @@ export const AgentCouncil: React.FC<AgentCouncilProps> = ({
                     >
                       <span className={style.text}>{agentIcons[st.agent]}</span>
                       <span className="uppercase text-[10px] font-bold">{st.agent}</span>
-                      <span className={`font-bold ${st.win_rate >= 50 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                        {st.win_rate}%
+                      <span className={`font-bold ${st.win_rate < 0 ? 'text-neutral-500' : st.win_rate >= 50 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {st.win_rate < 0 ? 'N/A' : `${st.win_rate}%`}
                       </span>
                     </span>
                   );
@@ -378,8 +395,8 @@ export const AgentCouncil: React.FC<AgentCouncilProps> = ({
                   {/* Win Rate */}
                   <div className="flex items-center justify-between">
                     <span className="text-neutral-400 text-[11px]">背書標的勝率:</span>
-                    <span className={`font-bold ${st.win_rate >= 50 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                      {st.win_rate}%
+                    <span className={`font-bold ${st.win_rate < 0 ? 'text-neutral-500' : st.win_rate >= 50 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                      {st.win_rate < 0 ? '無獨立會議資料' : `${st.win_rate}%`}
                     </span>
                   </div>
 
