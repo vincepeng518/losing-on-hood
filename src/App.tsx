@@ -151,15 +151,19 @@ export const App: React.FC = () => {
       }
     };
 
-    // Initial immediate fetch
-    pollApiData();
-
-    // 5-second polling interval
-    const intervalId = setInterval(pollApiData, 5000);
+    // Initial immediate fetch + recursive setTimeout (no overlap between requests)
+    let pollTimeoutId: ReturnType<typeof setTimeout>;
+    const startPollLoop = async () => {
+      await pollApiData();
+      if (isMounted) {
+        pollTimeoutId = setTimeout(startPollLoop, 5000);
+      }
+    };
+    startPollLoop();
 
     return () => {
       isMounted = false;
-      clearInterval(intervalId);
+      clearTimeout(pollTimeoutId);
     };
   }, []);
 
