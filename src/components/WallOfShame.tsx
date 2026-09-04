@@ -32,6 +32,8 @@ export const WallOfShame: React.FC<WallOfShameProps> = ({ trades, onGoToSimulato
           givebackRatio,
         };
       })
+      // Second-stage: only include if they actually gave back >60% of peak OR closed negative
+      .filter((item) => item.pnl_usd < 0 || item.givebackRatio > 60)
       .sort((a, b) => b.evaporatedUsd - a.evaporatedUsd);
   }, [trades]);
 
