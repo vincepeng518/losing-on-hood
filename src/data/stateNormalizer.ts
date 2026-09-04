@@ -30,7 +30,9 @@ export function normalizeAccountState(
         const alloc_usd = p.alloc_usd != null && !isNaN(Number(p.alloc_usd))
           ? Number(p.alloc_usd)
           : undefined;
-        const entry_price = Number(p.entry_price ?? p.entry_ep) || 0;
+        // 2026-09-04 定罪: bot 的 entry_ep = 開倉當下 ETH/USD 價(~2524), 不是幣價!
+        // 幣價正確來源: entry_info_px (開倉當下 token_info 報價, bot L734 已存)
+        const entry_price = Number(p.entry_price ?? p.entry_info_px) || 0;
         // current_price: try standard field, then entry_info_px (likely live price from info API),
         // then compute from entry_ep * (1 + last_chg/100), fallback to entry_price
         const current_price = Number(p.current_price ?? p.entry_info_px ?? (entry_price > 0 && p.last_chg != null ? entry_price * (1 + Number(p.last_chg) / 100) : undefined)) || entry_price;

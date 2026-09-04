@@ -34,7 +34,7 @@ export const PortfolioDashboard: React.FC<PortfolioDashboardProps> = ({
   onNavigateToShame,
 }) => {
   const [hoveredPoint, setHoveredPoint] = useState<EquityPoint | null>(null);
-  const [showSimulatedTrailing, setShowSimulatedTrailing] = useState<boolean>(true);
+  const [showSimulatedTrailing, setShowSimulatedTrailing] = useState<boolean>(false);
 
   const closedTrades = state.closed || [];
   const activePositions = Object.values(state.positions || {});
