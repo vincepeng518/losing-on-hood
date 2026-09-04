@@ -536,7 +536,8 @@ def tick():
                         {"address": addr, "symbol": p["symbol"], "method": method, "since": time.time(),
                          "entry_usd": p.get("entry_usd") or p.get("alloc_usd"),
                          "entry_quote_qty": p.get("entry_quote_qty"),
-                         "gas_usd": p.get("gas_usd")})
+                         "gas_usd": p.get("gas_usd"),
+                         "opened_ts": p.get("opened_ts")})
                     del s["positions"][addr]
             else:
                 print("  SELL FAILED — retry next tick")
@@ -563,8 +564,8 @@ def tick():
                 pass  # 單級別失敗不阻掃描
         # gas 節流: 只擋開倉不擋掃描（agent_log 要累積樣本）；開倉限 30 分/筆
         open_ts = [p.get("opened_ts") or 0 for p in s["positions"].values()]
-        last_buy_ts = max(open_ts) if open_ts else (s["closed"][-1].get("_buy_ts", 0) if s["closed"] else 0)
-        buy_throttle = last_buy_ts > time.time() - 1800  # 1h→30min
+        raw = (s["closed"][-1].get("_buy_ts") or 0) if s["closed"] else 0
+        last_buy_ts = max(open_ts) if open_ts else raw
         for t in toks[:75]:  # 聯集 ~70 幣全部進討論（舊 [:30] 把 1h/6h/1m 補充擋掉, 掃描面擴大形同虛設）
             if len(s["positions"]) >= MAX_OPEN: break
             addr = t["address"]
@@ -649,7 +650,6 @@ def tick():
             if not ok:
                 # 2026-09-04 修: fail 一次即記 seen（biohacking 教訓: fail<3 下輪再 fail 照樣燒 gas）
                 s["seen"][addr] = time.time()
-                s["seen"][addr+":fail"] = s["seen"].get(addr+":fail", 0) + 1
                 print(f"  [BUY FAIL] {sym} order={oid} 記 seen, 下輪不再試")
                 continue
             time.sleep(6)
@@ -753,7 +753,6 @@ def reduce_position(s, addr, p, sells):
     p["token_amount"] = int(orig - sold_qty)
     p["gas_usd"] = round((p.get("gas_usd") or 0) * (1 - ratio), 4)
     p["tp1_filled"] = True
-    p["custody"] = "wallet" if (token_balance_raw(addr) or 0) > 0 else p.get("custody")
     print(f"  {p['symbol']} TP partial ({ratio*100:.0f}% sold), 剩餘倉位已縮減")
 
 def monitor_tick():
@@ -769,7 +768,7 @@ def monitor_tick():
         custody = check_custody(s, addr, p, strat_open_ids, sells)
         p["custody"] = custody
         bal = token_balance_raw(addr)
-        if sells and not bal:
+        if sells and bal is not None and bal == 0:
             a = sells[-1]
             tx = (a.get("tx_hash") or "")[:64]
             already = tx in s["settled_txs"]
@@ -812,7 +811,8 @@ def monitor_tick():
                         {"address": addr, "symbol": p["symbol"], "method": method, "since": time.time(),
                          "entry_usd": p.get("entry_usd") or p.get("alloc_usd"),
                          "entry_quote_qty": p.get("entry_quote_qty"),
-                         "gas_usd": p.get("gas_usd")})
+                         "gas_usd": p.get("gas_usd"),
+                         "opened_ts": p.get("opened_ts")})
                     del s["positions"][addr]
             else:
                 print("  SELL FAILED — retry next minute")
@@ -831,17 +831,25 @@ def monitor_tick():
     for pc in list(s.get("pending_close", [])):
         age_h = (time.time() - pc.get("since", 0)) / 3600
         a = latest_sell(pc["address"], pc["since"] - 600)
-        if not a and age_h > 2 and not any(c["symbol"] == pc["symbol"] and c["time"] > datetime.now(timezone.utc).isoformat(timespec="minutes")[:13] for c in s["closed"]):
-            print(f"  [STALE-PENDING] {pc['symbol']} 掛 {age_h:.1f}h 無法補記(activity漏) — 手動確認")  # Oilinu 型漏帳告警
         if a:
-            # 倉已刪，用 activity buy_cost 當成本
+            tx = (a.get("tx_hash") or "")[:64]
+            if tx and tx in s.get("settled_txs", []):
+                # 已在 settled_txs — 直接移除 pending（已入帳）
+                s["pending_close"].remove(pc)
+                print(f"  [RECONCILE-CLEAN] {pc['symbol']} 已在 settled_txs 中，移除 pending")
+                continue
+            # 未入帳，正常 reconcile
             p_ref = {"symbol": pc.get("symbol","?"), "alloc_usd": pc.get("entry_usd") or float(a.get("buy_cost_usd") or 0),
                      "gas_usd": pc.get("gas_usd") or 0,
-                     "entry_quote_qty": pc.get("entry_quote_qty")}
+                     "entry_quote_qty": pc.get("entry_quote_qty"),
+                     "opened_ts": pc.get("opened_ts")}
             if settle(s, pc["address"], p_ref, a, "late reconcile", pc["method"]):
                 s["pending_close"].remove(pc)
                 pnl_pct = round((float(a.get("cost_usd") or 0) - p_ref["alloc_usd"]) / p_ref["alloc_usd"] * 100, 1) if p_ref["alloc_usd"] else 0
                 print(f"  [RECONCILE] {pc['symbol']} ~{pnl_pct:+.1f}%")
+        elif age_h > 2:
+            # 過 2h 仍找不到 sell activity 且不在 settled_txs
+            print(f"  [STALE-PENDING] {pc['symbol']} 掛 {age_h:.1f}h 無法補記(activity漏) — 手動確認")
     # 盤點
     total, lines = snapshot(s, acts_map, strat_open_ids)
     s["equity_onchain"] = round(total, 2)
